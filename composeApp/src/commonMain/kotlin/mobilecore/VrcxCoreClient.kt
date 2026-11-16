@@ -257,6 +257,33 @@ suspend fun VrcxCoreClient.favoriteLocalSnapshot(kind: String): JsonElement = in
 )
 
 /**
+ * Removes a favourite.
+ *
+ * `objectId` is the ENTITY id (world/avatar/user) - the same value VRChat's own delete takes
+ * and the same thing VRCM's `FavoriteData.id` already holds, so no semantics change.
+ */
+suspend fun VrcxCoreClient.favoriteDelete(objectId: String): VrchatResult = invoke(
+    "app__vrchat_favorite_delete",
+    buildJsonObject { put("input", buildJsonObject { put("objectId", objectId) }) }
+).toVrchatResult()
+
+/** Adds a favourite; `favoriteId` is likewise the entity id. */
+suspend fun VrcxCoreClient.favoriteAdd(
+    type: String,
+    entityId: String,
+    tags: String,
+): VrchatResult = invoke(
+    "app__vrchat_favorite_add",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("type", type)
+            put("favoriteId", entityId)
+            put("tags", tags)
+        })
+    }
+).toVrchatResult()
+
+/**
  * A VRChat response as the backend relays it: HTTP status plus the untouched body.
  *
  * The `app__vrchat_*` family answers with VRChat's own JSON, so the DTOs the app already

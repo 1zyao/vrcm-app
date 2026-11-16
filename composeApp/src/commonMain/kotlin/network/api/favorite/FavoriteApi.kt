@@ -1,6 +1,14 @@
 package io.github.vrcmteam.vrcm.network.api.favorite
 
 import io.github.vrcmteam.vrcm.core.extensions.fetchDataList
+import io.github.vrcmteam.vrcm.mobilecore.favoriteDelete
+import io.github.vrcmteam.vrcm.mobilecore.favoriteList
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
 import io.github.vrcmteam.vrcm.network.api.attributes.*
 import io.github.vrcmteam.vrcm.network.api.favorite.data.AddFavoriteRequest
 import io.github.vrcmteam.vrcm.network.api.favorite.data.FavoriteData
@@ -24,16 +32,29 @@ class FavoriteApi(private val client: HttpClient) {
         offset: Int = 0,
         n: Int = 50,
     ): Flow<List<FavoriteData>> = flow {
-            fetchDataList(offset, n) { currentOffset, _ ->
-                client.get(FAVORITES_API_PREFIX) {
-                    parameters {
-                        parameter("type", favoriteType.value)
-                        parameter("offset", currentOffset.toString())
-                        parameter("n", n.toString())
-                    }
-                }.body()
-            }
+            // Read from the backend's own favourite records instead of VRChat's paginated
+            // endpoint. Each row carries an entity id and the group it belongs to, which is
+            // all FavoriteService needs to group them (it keys on tags.firstOrNull()).
+            val rows = vrcxCoreClient().favoriteList(favoriteType.value)
+            emit(
+                runCatching { rows.jsonArray }.getOrElse { emptyList() }.mapNotNull { element ->
+                    val row = runCatching { element.jsonObject }.getOrNull() ?: return@mapNotNull null
+                    val entityId = row.field("worldId")
+                        ?: row.field("avatarId")
+                        ?: row.field("userId")
+                        ?: return@mapNotNull null
+                    FavoriteData(
+                        favoriteId = entityId,
+                        id = entityId,
+                        tags = listOfNotNull(row.field("groupName")),
+                        type = favoriteType.value,
+                    )
+                }
+            )
         }
+
+    private fun JsonObject.field(name: String): String? =
+        runCatching { (this[name] as? JsonPrimitive)?.contentOrNull }.getOrNull()
         
     /**
      * 添加收藏
@@ -115,7 +136,9 @@ class FavoriteApi(private val client: HttpClient) {
      * @param favoriteId 收藏记录 ID（FavoriteData.id）
      */
     suspend fun deleteFavorite(favoriteId: String) {
-        client.delete("$FAVORITES_API_PREFIX/$favoriteId").checkSuccess<Unit>()
+        // favouriteId here is the entity id (world/avatar/user), which is exactly what the
+        // backend's delete takes - same addressing as VRChat's own endpoint.
+        vrcxCoreClient().favoriteDelete(favoriteId)
     }
 
     /** Clears every favorite relationship in an owned official group without deleting the group. */
