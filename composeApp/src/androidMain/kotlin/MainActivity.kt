@@ -19,8 +19,10 @@ import io.github.vrcmteam.vrcm.mobilecore.VrcxCoreClient
 import io.github.vrcmteam.vrcm.mobilecore.feedRows
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
 import io.github.vrcmteam.vrcm.service.OfficialLinkInbox
 import io.github.vrcmteam.vrcm.service.NotificationLaunchDestination
 import io.github.vrcmteam.vrcm.service.NotificationLaunchInbox
@@ -74,6 +76,55 @@ class MainActivity : ComponentActivity() {
                         Log.i("VrcxCore", "feedRows ok: ${rows.toString().take(300)}")
                     }
                     .onFailure { Log.e("VrcxCore", "feedRows failed", it) }
+
+                // TEMP probe: the social baseline is the source of the favourites quota
+                // (per-group capacity/count). It answers `stale` unless the auth scope is
+                // set, so this checks that the session restore actually activated it.
+                launch {
+                    kotlinx.coroutines.delay(8_000)
+                    val userId = io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
+                        .currentSession.value?.account?.userId
+                    if (userId == null) {
+                        Log.w("VrcxCore", "baseline probe skipped: no session yet")
+                        return@launch
+                    }
+                    runCatching {
+                        core.invoke(
+                            "app__social_favorites_baseline_get",
+                            kotlinx.serialization.json.buildJsonObject {
+                                put("input", kotlinx.serialization.json.buildJsonObject {
+                                    put("userId", userId)
+                                    put("endpoint", "https://api.vrchat.cloud/api/1")
+                                })
+                            }
+                        )
+                    }.onSuccess { result ->
+                        // Print only what matters: the stale flag, the limits, and the
+                        // per-group capacity/count the favourites panel needs.
+                        val obj = result.jsonObject
+                        val stale = obj["stale"]?.jsonPrimitive?.content
+                        val snapshot = obj["snapshot"]?.jsonObject
+                        val limits = snapshot?.get("favoriteLimits")?.toString()
+                        val groups = listOf("favoriteAvatarGroups", "favoriteWorldGroups")
+                            .joinToString("; ") { field ->
+                                val list = snapshot?.get(field)
+                                    ?.let { runCatching { it.jsonArray }.getOrNull() }
+                                    ?: return@joinToString "$field=?"
+                                val parts = list.mapNotNull { g ->
+                                    val go = runCatching { g.jsonObject }.getOrNull() ?: return@mapNotNull null
+                                    "${go["key"]?.jsonPrimitive?.content}=" +
+                                        "${go["count"]?.jsonPrimitive?.content}/" +
+                                        "${go["capacity"]?.jsonPrimitive?.content}"
+                                }
+                                "$field[$field]=" + parts.joinToString(",")
+                            }
+                        Log.i(
+                            "VrcxCore",
+                            "baseline favorites: stale=$stale count=${obj["count"]?.jsonPrimitive?.content} " +
+                                "limits=$limits groups=$groups"
+                        )
+                    }.onFailure { Log.e("VrcxCore", "baseline favorites failed", it) }
+                }
 
                 // Event channel: proves the WS half of the contract is reachable and
                 // keeps logging whatever the core pushes.
@@ -170,6 +221,7 @@ class MainActivity : ComponentActivity() {
         const val PENDING_NOTIFICATION_TARGET_ID_KEY = "pending-notification-target-id"
     }
 }
+
 
 
 

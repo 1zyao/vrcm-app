@@ -35,29 +35,21 @@ class FavoriteApi(private val client: HttpClient) {
         offset: Int = 0,
         n: Int = 50,
     ): Flow<List<FavoriteData>> = flow {
-            // Read from the backend's own favourite records instead of VRChat's paginated
-            // endpoint. Each row carries an entity id and the group it belongs to, which is
-            // all FavoriteService needs to group them (it keys on tags.firstOrNull()).
-            val rows = vrcxCoreClient().favoriteList(favoriteType.value)
-            emit(
-                runCatching { rows.jsonArray }.getOrElse { emptyList() }.mapNotNull { element ->
-                    val row = runCatching { element.jsonObject }.getOrNull() ?: return@mapNotNull null
-                    val entityId = row.field("worldId")
-                        ?: row.field("avatarId")
-                        ?: row.field("userId")
-                        ?: return@mapNotNull null
-                    FavoriteData(
-                        favoriteId = entityId,
-                        id = entityId,
-                        tags = listOfNotNull(row.field("groupName")),
-                        type = favoriteType.value,
-                    )
-                }
-            )
+            // Temporarily back on VRChat's endpoint. The backend's app__favorite_list rows
+            // carry VRChat's group display name ("Favorites") rather than the group keys the
+            // panel buckets by ("worlds1"), so grouping and per-group counts came out wrong
+            // (0/100 for every group). The grouped form with key/count/capacity lives in the
+            // social baseline; this flips again once app__social_favorites_baseline_get lands.
+            fetchDataList(offset, n) { currentOffset, _ ->
+                client.get(FAVORITES_API_PREFIX) {
+                    parameters {
+                        parameter("type", favoriteType.value)
+                        parameter("offset", currentOffset.toString())
+                        parameter("n", n.toString())
+                    }
+                }.body()
+            }
         }
-
-    private fun JsonObject.field(name: String): String? =
-        runCatching { (this[name] as? JsonPrimitive)?.contentOrNull }.getOrNull()
         
     /**
      * 添加收藏

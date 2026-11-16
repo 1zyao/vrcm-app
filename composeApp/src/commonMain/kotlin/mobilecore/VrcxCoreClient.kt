@@ -165,7 +165,9 @@ suspend fun VrcxCoreClient.logout() {
  */
 suspend fun VrcxCoreClient.autoLoginStart(userId: String = ""): CoreLogin = invoke(
     "app__vrchat_auth_auto_login_start",
-    buildJsonObject { put("userId", userId) }
+    // Cloud wraps this command's argument in `input`, and the fork now matches that shape
+    // (the bare form fails with "missing field `input`").
+    buildJsonObject { put("input", buildJsonObject { put("userId", userId) }) }
 ).let {
     CoreLogin(
         state = authStateFromCore(it),
