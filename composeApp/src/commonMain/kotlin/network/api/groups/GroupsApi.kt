@@ -11,6 +11,9 @@ import io.github.vrcmteam.vrcm.network.api.groups.data.JoinGroupRequest
 import io.github.vrcmteam.vrcm.network.api.groups.data.LimitedGroup
 import io.github.vrcmteam.vrcm.network.api.groups.data.UpdateGroupMemberNotificationsRequest
 import io.github.vrcmteam.vrcm.network.api.groups.data.UpdateGroupRepresentationRequest
+import io.github.vrcmteam.vrcm.mobilecore.CoreJson
+import io.github.vrcmteam.vrcm.mobilecore.groupGet
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import io.github.vrcmteam.vrcm.network.extensions.checkSuccess
 import io.ktor.client.*
 import io.ktor.client.request.*
@@ -19,9 +22,11 @@ import io.ktor.http.*
 class GroupsApi(private val client: HttpClient) {
 
     suspend fun fetchGroup(groupId: String, includeRoles: Boolean = false, purpose: String = "other") =
-        client.get("$GROUPS_API_PREFIX/$groupId") {
-            parameter("includeRoles", includeRoles)
-        }.checkSuccess<GroupData>()
+        // Served by the backend's own group read instead of a request from this app.
+        CoreJson.decodeFromString(
+            GroupData.serializer(),
+            vrcxCoreClient().groupGet(groupId, includeRoles).bodyOrThrow(),
+        )
 
     suspend fun searchGroups(
         query: String? = null,
@@ -117,3 +122,4 @@ class GroupsApi(private val client: HttpClient) {
             .checkSuccess()
 
 }
+

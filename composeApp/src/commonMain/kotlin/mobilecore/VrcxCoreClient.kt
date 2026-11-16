@@ -358,6 +358,54 @@ suspend fun VrcxCoreClient.searchGroupsGet(params: JsonObject): VrchatResult = i
     buildJsonObject { put("input", buildJsonObject { put("params", params) }) }
 ).toVrchatResult()
 
+/** A single user by id (`GET users/{id}`). */
+suspend fun VrcxCoreClient.userGet(userId: String): VrchatResult = invoke(
+    "app__vrchat_user_get",
+    buildJsonObject { put("input", buildJsonObject { put("userId", userId) }) }
+).toVrchatResult()
+
+/** A user profile (`GET profile/{id}`); `asSelf` asks for the owner view. */
+suspend fun VrcxCoreClient.userProfileGet(
+    userId: String,
+    asSelf: Boolean = false,
+): VrchatResult = invoke(
+    "app__vrchat_user_profile_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("userId", userId)
+            put("asSelf", asSelf)
+        })
+    }
+).toVrchatResult()
+
+/** A group by id (`GET groups/{id}`). */
+suspend fun VrcxCoreClient.groupGet(
+    groupId: String,
+    includeRoles: Boolean = false,
+): VrchatResult = invoke(
+    "app__vrchat_group_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("groupId", groupId)
+            put("includeRoles", includeRoles)
+        })
+    }
+).toVrchatResult()
+
+/** An instance by identity (`GET instances/{worldId}:{instanceId}`). */
+suspend fun VrcxCoreClient.instanceGet(
+    worldId: String,
+    instanceId: String,
+): VrchatResult = invoke(
+    "app__vrchat_instance_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("worldId", worldId)
+            put("instanceId", instanceId)
+        })
+    }
+).toVrchatResult()
+
 /**
  * The favourites baseline: groups with capacity/count, plus the stored favourite limits.
  *

@@ -1,5 +1,6 @@
 package io.github.vrcmteam.vrcm.network.api.users
 
+import io.github.vrcmteam.vrcm.mobilecore.userGet
 import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.searchUsersGet
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
@@ -31,10 +32,11 @@ import kotlinx.serialization.Serializable
 class UsersApi(private val client: HttpClient) {
 
     suspend fun fetchUser(userId: String): UserData =
-        client.get("$USERS_API_PREFIX/$userId").checkSuccess<UserData>()
-
-    suspend fun fetchUserResponse(userId: String) =
-        client.get("$USERS_API_PREFIX/$userId").checkSuccess { this }
+        // Served by the backend's own user read instead of a request from this app.
+        CoreJson.decodeFromString(
+            UserData.serializer(),
+            vrcxCoreClient().userGet(userId).bodyOrThrow(),
+        )
 
     suspend fun searchUser(
         search: String,
@@ -222,6 +224,7 @@ private data class PlayerModerationData(
     val targetUserId: String,
     val type: String,
 )
+
 
 
 

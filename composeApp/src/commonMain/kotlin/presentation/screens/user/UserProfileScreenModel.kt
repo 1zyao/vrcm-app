@@ -1020,17 +1020,12 @@ class UserProfileScreenModel internal constructor(
             loadCoordinator.runLoads(
                 forceRefresh = forceRefresh,
                 loadUser = {
-                    val responseResult = authService.reTryAuthCatching {
-                        usersApi.fetchUserResponse(userId)
-                    }
-                    responseResult.exceptionOrNull()?.let { error -> handleError(error) }
-                    val response = responseResult.getOrNull()
-                    if (response != null) {
-                        // 防止body序列化异常
-                        val userResult = runCatching { response.body<UserData>() }
-                        userResult.exceptionOrNull()?.let { error -> handleError(error) }
-                        val user = userResult.getOrNull()
-                        if (user != null) {
+                    // The backend answers with the user object itself, so there is no second
+                    // body to decode here (this used to be a raw HttpResponse).
+                    val userResult = authService.reTryAuthCatching { usersApi.fetchUser(userId) }
+                    userResult.exceptionOrNull()?.let { error -> handleError(error) }
+                    val user = userResult.getOrNull()
+                    if (user != null) {
                             val publicProfile = authService.reTryAuthCatching {
                                 profileAppearanceApi.getPublicProfile(user.id)
                             }.getOrNull()
@@ -1054,11 +1049,7 @@ class UserProfileScreenModel internal constructor(
                             }
                             saveCache(mergedUserData.mergeCurrentUserProfile(currentUser))
                         }
-                        _userJson.value = response.bodyAsText().pretty()
                         user != null
-                    } else {
-                        false
-                    }
                 },
                 loadGroups = { loadUserGroups(userId) },
             )
