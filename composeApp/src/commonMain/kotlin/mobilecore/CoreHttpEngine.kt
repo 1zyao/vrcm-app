@@ -111,14 +111,24 @@ class CoreHttpEngine(
         }
 
         return try {
-            val result = vrcxCoreClient().invoke(
-                cmd = "app__web_execute",
-                args = buildJsonObject {
-                    put("url", data.url.toString())
-                    put("method", data.method.value)
-                    put("headers", data.headers.toJsonPairs(data.body))
-                    put("body", data.body.readBodyTextOrNull())
-                },
+            // Ktor's HttpTimeout capability is not forwarded to this engine, so a
+            // request whose core call never returns would hang forever. A hard
+            // ceiling here keeps a wedged core from freezing the UI layer.
+            val result = kotlinx.coroutines.withTimeoutOrNull(CORE_REQUEST_TIMEOUT_MS) {
+                vrcxCoreClient().invoke(
+                    cmd = "app__web_execute",
+                    args = buildJsonObject {
+                        put("url", data.url.toString())
+                        put("method", data.method.value)
+                        put("headers", data.headers.toJsonPairs(data.body))
+                        put("body", data.body.readBodyTextOrNull())
+                    },
+                )
+            } ?: return errorResponse(
+                requestTime = requestTime,
+                callContext = callCtx,
+                message = "VRCX core did not answer within ${CORE_REQUEST_TIMEOUT_MS} ms " +
+                    "(${data.method.value} ${data.url})",
             )
 
             val payload = result.jsonObject
@@ -272,3 +282,12 @@ private suspend fun OutgoingContent.readBodyTextOrNull(): JsonElement = when (th
 
 private fun ByteArray.toBodyElement(): JsonElement =
     if (isEmpty()) JsonNull else JsonPrimitive(decodeToString())
+
+/**
+ * Upper bound for one command round trip.
+ *
+ * Matches the 60 s the client would otherwise have got from HttpTimeout's socket
+ * timeout: long enough for a slow VRChat response, short enough that a wedged core
+ * surfaces as an error instead of a hung UI.
+ */
+private const val CORE_REQUEST_TIMEOUT_MS = 60_000L
