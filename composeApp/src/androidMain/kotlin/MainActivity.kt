@@ -66,80 +66,6 @@ class MainActivity : ComponentActivity() {
                     }
                     .onFailure { Log.e("VrcxCore", "feedRows failed", it) }
 
-                // TEMP probe: the social baseline is the source of the favourites quota
-                // (per-group capacity/count). It answers `stale` unless the auth scope is
-                // set, so this checks that the session restore actually activated it.
-                launch {
-                    kotlinx.coroutines.delay(8_000)
-                    val userId = io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
-                        .currentSession.value?.account?.userId
-                    if (userId == null) {
-                        Log.w("VrcxCore", "baseline probe skipped: no session yet")
-                        return@launch
-                    }
-                    runCatching {
-                        core.invoke(
-                            "app__social_favorites_baseline_get",
-                            kotlinx.serialization.json.buildJsonObject {
-                                put("input", kotlinx.serialization.json.buildJsonObject {
-                                    put("userId", userId)
-                                    put("endpoint", "https://api.vrchat.cloud/api/1")
-                                })
-                            }
-                        )
-                    }.onSuccess { result ->
-                        // Print only what matters: the stale flag, the limits, and the
-                        // per-group capacity/count the favourites panel needs.
-                        val obj = result.jsonObject
-                        val stale = obj["stale"]?.jsonPrimitive?.content
-                        val snapshot = obj["snapshot"]?.jsonObject
-                        val limits = snapshot?.get("favoriteLimits")?.toString()
-                        val groups = listOf("favoriteAvatarGroups", "favoriteWorldGroups")
-                            .joinToString("; ") { field ->
-                                val list = snapshot?.get(field)
-                                    ?.let { runCatching { it.jsonArray }.getOrNull() }
-                                    ?: return@joinToString "$field=?"
-                                val parts = list.mapNotNull { g ->
-                                    val go = runCatching { g.jsonObject }.getOrNull() ?: return@mapNotNull null
-                                    "${go["key"]?.jsonPrimitive?.content}=" +
-                                        "${go["count"]?.jsonPrimitive?.content}/" +
-                                        "${go["capacity"]?.jsonPrimitive?.content}"
-                                }
-                                "$field[$field]=" + parts.joinToString(",")
-                            }
-                        Log.i(
-                            "VrcxCore",
-                            "baseline favorites: stale=$stale count=${obj["count"]?.jsonPrimitive?.content} " +
-                                "limits=$limits groups=$groups"
-                        )
-                    }.onFailure { Log.e("VrcxCore", "baseline favorites failed", it) }
-                }
-
-                // TEMP probe: VRChat's file images (api.vrchat.cloud/api/1/image/...) come back
-                // 200 image/png to curl but fail inside Coil with a decode error, so log what the
-                // app itself receives - status, content type, encoding and the first bytes.
-                launch {
-                    kotlinx.coroutines.delay(12_000)
-                    runCatching {
-                        val url = "https://api.vrchat.cloud/api/1/image/" +
-                            "file_57586d9c-629a-45e9-a426-ee285195b007/1/256"
-                        val response = io.ktor.client.HttpClient()
-                            .get(url)
-                        val bytes = response.body<ByteArray>()
-                        val decoded = android.graphics.BitmapFactory
-                            .decodeByteArray(bytes, 0, bytes.size)
-                        Log.i(
-                            "VrcxCore",
-                            "image probe: status=${response.status} " +
-                                "contentType=${response.headers["Content-Type"]} " +
-                                "encoding=${response.headers["Content-Encoding"]} " +
-                                "bytes=${bytes.size} " +
-                                "head=${bytes.take(8).joinToString(",") { (it.toInt() and 0xFF).toString(16) }} " +
-                                "decoded=${decoded?.let { "${it.width}x${it.height}" } ?: "null"}"
-                        )
-                    }.onFailure { Log.e("VrcxCore", "image probe failed", it) }
-                }
-
                 // Event channel: proves the WS half of the contract is reachable and
                 // keeps logging whatever the core pushes.
                 launch {
@@ -156,34 +82,6 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }.onFailure { Log.e("VrcxCore", "event stream failed", it) }
-                }
-
-                // TEMP probe: the timeline's filtered path, exercised without the UI (menu taps
-                // are unreliable on this emulator). This is the same Kotlin call the model makes,
-                // so it separates "backend filtering" from "UI selection".
-                launch {
-                    kotlinx.coroutines.delay(16_000)
-                    val probeUserId = io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
-                        .currentSession.value?.account?.userId ?: return@launch
-                    listOf(
-                        emptyList<String>(),
-                        listOf("GPS"),
-                        listOf("Status"),
-                        listOf("Avatar"),
-                    ).forEach { filters ->
-                        runCatching { core.feedQuery(probeUserId, "lookup", 10, filters = filters) }
-                            .onSuccess { result ->
-                                val arr = runCatching { result.jsonArray }.getOrDefault(emptyList())
-                                val first = arr.firstOrNull()?.jsonObject
-                                Log.i(
-                                    "VrcxCore",
-                                    "probe filters=$filters rows=${arr.size} " +
-                                        "firstType=${first?.get("type")?.jsonPrimitive?.content} " +
-                                        "firstAt=${first?.get("created_at")?.jsonPrimitive?.content}"
-                                )
-                            }
-                            .onFailure { Log.e("VrcxCore", "probe filters=$filters failed", it) }
-                    }
                 }
 
                 // Transport probe: `config` is a public VRChat endpoint, so a 200
