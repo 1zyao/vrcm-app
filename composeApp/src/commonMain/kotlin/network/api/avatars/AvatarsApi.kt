@@ -9,6 +9,10 @@ import io.github.vrcmteam.vrcm.network.api.avatars.data.AvatarSelectionData
 import io.github.vrcmteam.vrcm.network.api.avatars.data.AvatarStyle
 import io.github.vrcmteam.vrcm.network.api.avatars.data.AvatarUpdateData
 import io.github.vrcmteam.vrcm.network.api.auth.data.CurrentUserData
+import io.github.vrcmteam.vrcm.mobilecore.CoreJson
+import io.github.vrcmteam.vrcm.mobilecore.avatarListByUserGet
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
+import kotlinx.serialization.builtins.ListSerializer
 import io.github.vrcmteam.vrcm.network.extensions.checkSuccess
 import io.ktor.client.*
 import io.ktor.client.request.*
@@ -90,17 +94,24 @@ class AvatarsApi(private val client: HttpClient) {
         order: String = "descending",
         offset: Int = 0,
         releaseStatus: String? = null,
-    ): List<AvatarData> =
-        client.get(AVATARS_API_PREFIX) {
-            featured?.let { parameter("featured", it) }
-            parameter("sort", sort)
-            user?.let { parameter("user", it) }
-            userId?.let { parameter("userId", it) }
-            parameter("n", n)
-            parameter("order", order)
-            parameter("offset", offset)
-            releaseStatus?.let { parameter("releaseStatus", it) }
-        }.checkSuccess()
+    ): List<AvatarData> {
+        // Served by the backend's avatar list command. `featured` has no counterpart there and no
+        // caller here passes it, so it is rejected rather than silently ignored.
+        require(featured == null) { "featured filtering is not available through the backend" }
+        val result = vrcxCoreClient().avatarListByUserGet(
+            userId = userId.orEmpty(),
+            user = user.orEmpty(),
+            n = n,
+            offset = offset,
+            sort = sort,
+            order = order,
+            releaseStatus = releaseStatus ?: "all",
+        )
+        return CoreJson.decodeFromString(
+            ListSerializer(AvatarData.serializer()),
+            result.bodyOrThrow(),
+        )
+    }
 
     /**
      * 流式获取用户的头像列表（自动分页）
@@ -134,3 +145,4 @@ class AvatarsApi(private val client: HttpClient) {
         }
     }
 }
+

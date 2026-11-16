@@ -427,6 +427,36 @@ suspend fun VrcxCoreClient.worldGet(
 ).toVrchatResult()
 
 /**
+ * An avatar list, optionally scoped to one owner (`app__vrchat_avatar_list_by_user_get`).
+ *
+ * `user = "me"` means the signed-in account. `sort`, `order` and `releaseStatus` are validated
+ * against the backend's enums, so an unexpected value fails with a readable error instead of
+ * silently returning the wrong page.
+ */
+suspend fun VrcxCoreClient.avatarListByUserGet(
+    userId: String = "",
+    user: String = "",
+    n: Int = 50,
+    offset: Int = 0,
+    sort: String = "updated",
+    order: String = "descending",
+    releaseStatus: String = "all",
+): VrchatResult = invoke(
+    "app__vrchat_avatar_list_by_user_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            if (userId.isNotEmpty()) put("userId", userId)
+            if (user.isNotEmpty()) put("user", user)
+            put("n", n)
+            put("offset", offset)
+            put("sort", sort)
+            put("order", order)
+            put("releaseStatus", releaseStatus)
+        })
+    }
+).toVrchatResult()
+
+/**
  * Notification list from the core's own database (cloud's `app__notification_list_query`).
  *
  * `filters` are the notification type names ("friendRequest", …); an empty list means all types.
