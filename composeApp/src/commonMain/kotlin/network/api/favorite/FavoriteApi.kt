@@ -209,35 +209,27 @@ private fun JsonObject.stringField(name: String): String? =
 /**
  * Entries as this app's [FavoriteData], tagged with the group NAME.
  *
- * The baseline keys look like `world:worlds1`; the panel buckets on the bare name, which is also
- * what [FavoriteGroupData.name] holds, so the two line up.
+ * `remoteFavoritesById` holds VRChat's own favourite records - each with `type`, `favoriteId` and
+ * the group name in `tags` - so one path serves all three kinds. Earlier this read per-type maps
+ * (`localAvatarFavorites`, `groupedFavoriteWorldIdsByGroupKey`), which are local-only views: the
+ * avatar tab came out empty because remotely favourited avatars are not in the local map at all.
  */
 private fun JsonObject.favoriteEntries(type: FavoriteType): List<FavoriteData> {
-    val grouped = this[type.baselineEntriesField()] as? JsonObject
-    val rows = mutableListOf<FavoriteData>()
-    grouped?.forEach { (key, value) ->
-        val groupName = key.substringAfter(':', key)
-        val ids = (value as? JsonArray)
+    val records = this["remoteFavoritesById"] as? JsonObject ?: return emptyList()
+    return records.values.mapNotNull { element ->
+        val record = element as? JsonObject ?: return@mapNotNull null
+        if (!record.stringField("type").equals(type.value, ignoreCase = true)) return@mapNotNull null
+        val entityId = record.stringField("favoriteId") ?: return@mapNotNull null
+        val groupName = (record["tags"] as? JsonArray)
             ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
-            .orEmpty()
-        ids.forEach { id ->
-            rows += FavoriteData(
-                favoriteId = id,
-                id = id,
-                tags = listOf(groupName),
-                type = type.value,
-            )
-        }
+            ?.firstOrNull()
+        FavoriteData(
+            favoriteId = entityId,
+            id = entityId,
+            tags = listOfNotNull(groupName),
+            type = type.value,
+        )
     }
-    if (rows.isEmpty() && type == FavoriteType.Avatar) {
-        // Avatars also carry a flat id list; use it when there is no grouped form.
-        (this["favoriteAvatarIds"] as? JsonArray)
-            ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
-            ?.forEach { id ->
-                rows += FavoriteData(favoriteId = id, id = id, tags = emptyList(), type = type.value)
-            }
-    }
-    return rows
 }
 
 /**
