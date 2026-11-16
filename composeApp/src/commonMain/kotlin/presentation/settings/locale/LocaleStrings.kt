@@ -826,7 +826,7 @@ sealed class LocaleStrings {
     open val friendActivityLastActivity: String = "Last activity"
     open val friendActivityMeetingCount: String = "Meetups"
     open val friendActivityTogetherTime: String = "Time together"
-    open val friendActivityObservedHint: String = "Observed while VRCM was running"
+    open val friendActivityObservedHint: String = "Long-term history recorded by VRCX"
     open val friendActivityTimelineTitle: String = "Friend activity"
     open val friendActivityTimelineEmpty: String = "No observed activity yet"
     open val friendActivityTimelineError: String = "Friend activity could not be loaded"
@@ -1244,3 +1244,4 @@ val strings: LocaleStrings
             else -> LocaleStringsEn
         }
     }
+

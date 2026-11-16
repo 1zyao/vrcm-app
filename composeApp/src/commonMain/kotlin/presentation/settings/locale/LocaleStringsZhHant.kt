@@ -787,7 +787,7 @@ internal object LocaleStringsZhHant : LocaleStrings() {
     override val friendActivityLastActivity = "最近活動"
     override val friendActivityMeetingCount = "見面次數"
     override val friendActivityTogetherTime = "共同遊玩時長"
-    override val friendActivityObservedHint = "僅統計 VRCM 運行期間觀察到的資料"
+    override val friendActivityObservedHint = "來自 VRCX 長期記錄的好友動態"
     override val friendActivityTimelineTitle = "好友動態"
     override val friendActivityTimelineEmpty = "暫無觀察到的好友動態"
     override val friendActivityTimelineError = "無法載入好友動態"
@@ -1156,3 +1156,4 @@ internal object LocaleStringsZhHant : LocaleStrings() {
     override val playerModerationCleanupPartialFailure = "已清除 %removed% 個目標，另有 %failed% 個目標清除失敗。"
     override val playerModerationCleanupFailure = "無法確認所選記錄已全部清除，請重新整理以查看目前狀態。"
 }
+

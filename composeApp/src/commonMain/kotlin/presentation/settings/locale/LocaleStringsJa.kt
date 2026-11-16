@@ -799,7 +799,7 @@ internal object LocaleStringsJa : LocaleStrings() {
     override val friendActivityLastActivity = "最近のアクティビティ"
     override val friendActivityMeetingCount = "会った回数"
     override val friendActivityTogetherTime = "一緒にいた時間"
-    override val friendActivityObservedHint = "VRCM の起動中に観測したデータです"
+    override val friendActivityObservedHint = "VRCX が長期記録したフレンド履歴"
     override val friendActivityTimelineTitle = "フレンドの動向"
     override val friendActivityTimelineEmpty = "観測されたアクティビティはまだありません"
     override val friendActivityTimelineError = "フレンドの動向を読み込めませんでした"
@@ -1185,3 +1185,4 @@ internal object LocaleStringsJa : LocaleStrings() {
     override val playerModerationCleanupFailure =
         "選択した記録がすべて消去されたことを確認できません。更新して現在の状態を確認してください。"
 }
+

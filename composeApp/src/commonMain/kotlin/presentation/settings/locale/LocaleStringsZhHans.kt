@@ -787,9 +787,9 @@ internal object LocaleStringsZhHans : LocaleStrings() {
     override val friendActivityLastActivity = "最近活动"
     override val friendActivityMeetingCount = "见面次数"
     override val friendActivityTogetherTime = "共同游玩时长"
-    override val friendActivityObservedHint = "仅统计 VRCM 运行期间观察到的数据"
+    override val friendActivityObservedHint = "来自 VRCX 长期记录的好友动态"
     override val friendActivityTimelineTitle = "好友动态"
-    override val friendActivityTimelineEmpty = "暂无观察到的好友动态"
+    override val friendActivityTimelineEmpty = "暂无好友动态记录"
     override val friendActivityTimelineError = "无法加载好友动态"
     override val friendActivityLoadMoreError = "无法加载更多好友动态"
     override val friendActivityFilterAll = "全部"
@@ -1157,3 +1157,5 @@ internal object LocaleStringsZhHans : LocaleStrings() {
     override val playerModerationCleanupPartialFailure = "已清除 %removed% 个目标，另有 %failed% 个目标清除失败。"
     override val playerModerationCleanupFailure = "无法确认所选记录已全部清除，请刷新查看当前状态。"
 }
+
+
