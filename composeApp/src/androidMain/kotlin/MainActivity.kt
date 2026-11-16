@@ -59,7 +59,7 @@ class MainActivity : ComponentActivity() {
         val core = startVrcxCore(filesDir.absolutePath)
         if (core != null) {
             lifecycleScope.launch {
-                runCatching { core.feedRows("usr_probe", 10) }
+                runCatching { core.feedRows("usr_ed329568-c23b-4ee1-aec9-e902f29dff19", 10) }
                     .onSuccess { rows ->
                         Log.i("VrcxCore", "feedRows ok: ${rows.toString().take(300)}")
                     }
@@ -234,6 +234,7 @@ class MainActivity : ComponentActivity() {
         const val PENDING_NOTIFICATION_TARGET_ID_KEY = "pending-notification-target-id"
     }
 }
+
 
 
 
