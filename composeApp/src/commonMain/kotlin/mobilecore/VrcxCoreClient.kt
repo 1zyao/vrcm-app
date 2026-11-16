@@ -12,6 +12,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -32,7 +33,7 @@ class VrcxCoreClient(
 ) {
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
-    suspend fun invoke(cmd: String, args: JsonObject = buildJsonObject {}): JsonElement {
+    suspend fun invoke(cmd: String, args: JsonElement = buildJsonObject {}): JsonElement {
         val payload = buildJsonObject {
             put("cmd", cmd)
             put("args", args)
@@ -76,6 +77,10 @@ suspend fun VrcxCoreClient.feedRows(
  * The core owns the HTTP call, the cookie jar and the 2FA state machine, so the
  * app never talks to VRChat directly. `mode` is the enum tag: the core's
  * `LoginSessionStartInput` is internally tagged with `mode` and camelCase fields.
+ *
+ * Note the args are the input struct itself — `register_typed` deserialises the
+ * whole `args` object — so there is no `input` wrapper here. (Wrapping it produces
+ * `missing field \`mode\`` from serde.)
  */
 suspend fun VrcxCoreClient.loginBasic(
     username: String,
@@ -84,12 +89,10 @@ suspend fun VrcxCoreClient.loginBasic(
 ): CoreLogin = invoke(
     "app__vrchat_auth_session_start",
     buildJsonObject {
-        put("input", buildJsonObject {
-            put("mode", "basic")
-            put("username", username)
-            put("password", password)
-            put("saveCredentials", saveCredentials)
-        })
+        put("mode", "basic")
+        put("username", username)
+        put("password", password)
+        put("saveCredentials", saveCredentials)
     }
 ).let {
     CoreLogin(
@@ -113,11 +116,9 @@ suspend fun VrcxCoreClient.loginRespond(
 ): CoreLogin = invoke(
     "app__vrchat_auth_session_respond",
     buildJsonObject {
-        put("input", buildJsonObject {
-            put("attemptId", attemptId)
-            put("method", method)
-            put("code", code)
-        })
+        put("attemptId", attemptId)
+        put("method", method)
+        put("code", code)
     }
 ).let {
     CoreLogin(
@@ -142,7 +143,9 @@ suspend fun VrcxCoreClient.loginRespond(
 suspend fun VrcxCoreClient.logout() {
     invoke(
         "app__vrchat_auth_session_end",
-        buildJsonObject { put("input", "Logout") }
+        // `LoginSessionEnd` is externally tagged: the `Logout` variant is the bare
+        // string, and it *is* the args object.
+        JsonPrimitive("Logout")
     )
 }
 
@@ -159,9 +162,7 @@ suspend fun VrcxCoreClient.logout() {
  */
 suspend fun VrcxCoreClient.autoLoginStart(userId: String = ""): CoreLogin = invoke(
     "app__vrchat_auth_auto_login_start",
-    buildJsonObject {
-        put("input", buildJsonObject { put("userId", userId) })
-    }
+    buildJsonObject { put("userId", userId) }
 ).let {
     CoreLogin(
         state = authStateFromCore(it),
@@ -198,3 +199,4 @@ suspend fun VrcxCoreClient.debugEmitEvent(name: String, payload: JsonElement = J
         }
     )
 }
+
