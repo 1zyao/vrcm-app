@@ -2,8 +2,11 @@ package io.github.vrcmteam.vrcm.network.api.favorite
 
 import io.github.vrcmteam.vrcm.core.extensions.fetchDataList
 import io.github.vrcmteam.vrcm.mobilecore.favoriteDelete
+import io.github.vrcmteam.vrcm.mobilecore.favoriteGroupsGet
 import io.github.vrcmteam.vrcm.mobilecore.favoriteList
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -97,15 +100,16 @@ class FavoriteApi(private val client: HttpClient) {
         offset: Int = 0,
         ownerId: String? = null
     ): List<FavoriteGroupData> {
-         return flow{
-            fetchFavoriteGroupList(
-                favoriteType = favoriteType,
-                n = n,
-                offset = offset,
-                ownerId = ownerId
-
-            )
-        }.toCollection(mutableListOf()).flatten()
+        // Served by the backend. Its command takes no `type`, so the filter that this
+        // method's name promises happens here instead.
+        val result = vrcxCoreClient().favoriteGroupsGet(
+            n = n.coerceIn(1, 100),
+            offset = offset,
+            ownerId = ownerId.orEmpty(),
+        )
+        return Json
+            .decodeFromString(ListSerializer(FavoriteGroupData.serializer()), result.bodyOrThrow())
+            .filter { it.type.equals(favoriteType.value, ignoreCase = true) }
     }
 
     private suspend fun  FlowCollector<List<FavoriteGroupData>>.fetchFavoriteGroupList(

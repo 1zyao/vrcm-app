@@ -284,6 +284,26 @@ suspend fun VrcxCoreClient.favoriteAdd(
 ).toVrchatResult()
 
 /**
+ * Favourite groups (`GET /favorite/groups`).
+ *
+ * The command takes no `type`, so callers filter the returned list themselves.
+ */
+suspend fun VrcxCoreClient.favoriteGroupsGet(
+    n: Int = 50,
+    offset: Int = 0,
+    ownerId: String = "",
+): VrchatResult = invoke(
+    "app__vrchat_favorite_groups_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("n", n)
+            put("offset", offset)
+            if (ownerId.isNotEmpty()) put("ownerId", ownerId)
+        })
+    }
+).toVrchatResult()
+
+/**
  * A VRChat response as the backend relays it: HTTP status plus the untouched body.
  *
  * The `app__vrchat_*` family answers with VRChat's own JSON, so the DTOs the app already
