@@ -72,8 +72,7 @@ internal class BackendFriendActivityTimelineSource(
         val rows = runCatching {
             client.feedQuery(
                 userId = token.userId,
-                mode = "lookup",
-                maxEntries = limit,
+                mode = "lookup",                maxEntries = limit,
                 // The backend pages by (created_at, source_rank, row_id); only the first
                 // two are known here, so the row id doubles as the rank tiebreaker.
                 cursor = cursor?.let {
@@ -90,9 +89,23 @@ internal class BackendFriendActivityTimelineSource(
         }
 
         val array = runCatching { rows.jsonArray }.getOrElse { return emptyList() }
+
+        // Feed rows do not carry the friend's profile icon, so it is joined in from the roster
+        // baseline - the same wrapped data the friend list uses. Without this the timeline shows
+        // a grey circle for every row.
+        val iconsByUser = runCatching {
+            val snapshot = FriendRosterCache.snapshot(client)
+            val byId = snapshot["friendsById"] as? JsonObject ?: return@runCatching emptyMap()
+            byId.mapNotNull { (userId, value) ->
+                val icon = (value as? JsonObject)?.str("iconUrl")
+                    ?: (value as? JsonObject)?.str("currentAvatarImageUrl")
+                if (icon.isNullOrBlank()) null else userId to icon
+            }.toMap()
+        }.getOrElse { emptyMap() }
+
         return array.mapNotNull { element ->
             val row = runCatching { element.jsonObject }.getOrNull() ?: return@mapNotNull null
-            row.toEvent(types)
+            row.toEvent(types, iconsByUser)
         }
     }
 }
@@ -101,6 +114,7 @@ internal class BackendFriendActivityTimelineSource(
 @OptIn(kotlin.time.ExperimentalTime::class)
 private fun JsonObject.toEvent(
     types: Set<FriendActivityEventType>,
+    iconsByUser: Map<String, String> = emptyMap(),
 ): FriendActivityEvent? {
     val type = when (str("type")?.lowercase()) {
         "online" -> FriendActivityEventType.Online
@@ -114,24 +128,41 @@ private fun JsonObject.toEvent(
         // backend has no equivalent read model, so they are simply absent here.
         else -> return null
     }
-    if (type !in types) return null
+    // An empty set means "no filter" - that is what the All tab sends, and treating it as
+    // "nothing is allowed" made the All tab look empty while every specific tab had data.
+    if (types.isNotEmpty() && type !in types) return null
 
     val userId = str("userId") ?: str("ownerId") ?: return null
     val displayName = str("displayName") ?: return null
     val createdAt = str("created_at") ?: return null
 
+    // A location row carries both the raw instance string and the resolved world name; the
+    // timeline shows the name through `worldName`, so `currentValue` stays null - setting both
+    // made the subtitle print the same name twice.
+    val worldName = str("worldName")
+    val location = str("location")
+    val (previousValue, currentValue) = when (type) {
+        FriendActivityEventType.LocationChanged -> null to null
+        FriendActivityEventType.AvatarChanged ->
+            str("previousCurrentAvatarImageUrl") to str("currentAvatarImageUrl")
+        else -> (str("previousStatus") ?: str("previousLocation")) to (str("status") ?: location)
+    }
+
     return FriendActivityEvent(
         id = this["rowId"]?.jsonPrimitive?.longOrNull ?: 0L,
         friendUserId = userId,
         displayName = displayName,
-        profileImageUrl = str("currentAvatarImageUrl").orEmpty(),
+        // Prefer the friend's icon from the roster, then anything the row itself carries.
+        profileImageUrl = iconsByUser[userId]
+            ?: str("iconUrl")
+            ?: str("currentAvatarImageUrl").orEmpty(),
         type = type,
         occurredAtMillis = runCatching { Instant.parse(createdAt).toEpochMilliseconds() }
             .getOrDefault(0L),
-        previousValue = str("previousStatus") ?: str("previousLocation"),
-        currentValue = str("status") ?: str("location"),
-        worldId = str("worldId"),
-        worldName = str("worldName"),
+        previousValue = previousValue,
+        currentValue = currentValue,
+        worldId = location?.substringBefore(':')?.takeIf { it.startsWith("wrld_") },
+        worldName = worldName,
         accessType = null,
     )
 }
