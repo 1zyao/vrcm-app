@@ -5,6 +5,7 @@ import io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
 import io.github.vrcmteam.vrcm.di.supports.PersistentCookiesStorage
 import io.github.vrcmteam.vrcm.network.api.attributes.AUTH_COOKIE
 import io.github.vrcmteam.vrcm.mobilecore.isVrcxCoreReady
+import io.github.vrcmteam.vrcm.mobilecore.VrcxCoreException
 import io.github.vrcmteam.vrcm.mobilecore.autoLoginStart
 import io.github.vrcmteam.vrcm.mobilecore.loginBasic
 import io.github.vrcmteam.vrcm.mobilecore.loginRespond
@@ -133,7 +134,7 @@ class AuthService(
             val response = authApi.userRes()
             when (response.status) {
                 HttpStatusCode.OK -> {
-                    emitAuthed(account.password, response, expectedUserId = account.userId).getOrThrow()
+                    emitAuthed(account.password, expectedUserId = account.userId).getOrThrow()
                     return@withLock AuthState.Authed
                 }
                 HttpStatusCode.Unauthorized -> clearAuthCookie(account.userId)
@@ -166,6 +167,9 @@ class AuthService(
                     emitAuthed(null).getOrThrow()
                     AuthState.Authed
                 } catch (error: Throwable) {
+                    println(
+                        "[VrcxCore] emitAuthed failed: ${error::class.simpleName}: ${error.message}"
+                    )
                     null
                 } finally {
                     pendingCoreUserJson = null
@@ -182,7 +186,7 @@ class AuthService(
         val response = authApi.userRes()
         return when (response.status) {
             HttpStatusCode.OK -> {
-                emitAuthed(account.password, response).getOrThrow()
+                emitAuthed(account.password).getOrThrow()
                 AuthState.Authed
             }
 
@@ -539,21 +543,25 @@ class AuthService(
 
     private suspend fun emitAuthed(
         password: String? = null,
-        response: HttpResponse? = null,
         expectedUserId: String? = null,
     ): Result<Unit> = runCatching {
-        // When the core handed over the user JSON for this login, use it instead
-        // of asking VRChat for the current user again.
+        // The backend returns the user with the login result, so there is no second
+        // request here - and no fallback to asking VRChat directly.
         println("[VrcxCore] emitAuthed coreUser=${pendingCoreUserJson != null}")
-        val coreUser = pendingCoreUserJson?.let { json ->
+        val userData = pendingCoreUserJson?.let { json ->
             runCatching {
                 Json { ignoreUnknownKeys = true }.decodeFromString<CurrentUserData>(json)
-            }.getOrNull()
-        }
-        (coreUser
-            ?: enrichCurrentUser(
-                (response ?: authApi.userRes()).checkSuccess<CurrentUserData>()
-            )).let {
+            }.getOrElse { error ->
+                println("[VrcxCore] user decode failed: ${error::class.simpleName}: ${error.message}")
+                null
+            }
+        } ?: throw VrcxCoreException(
+            "noUser",
+            "the backend did not return a user for this login"
+        )
+        // Used as-is: the backend's user payload is already complete, and enriching it
+        // would issue extra requests that this layer is supposed to no longer make.
+        userData.let {
             val userData = it
             require(expectedUserId == null || userData.id == expectedUserId) {
                 "Authenticated account does not match the selected account"

@@ -3,6 +3,7 @@ package io.github.vrcmteam.vrcm.mobilecore
 import io.github.vrcmteam.vrcm.network.api.attributes.AuthState
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
@@ -23,29 +24,50 @@ fun authStateFromCore(payload: JsonElement): AuthState {
     val obj = payload as? JsonObject
         ?: return AuthState.Unauthorized("unexpected core response")
 
+    // The exact wire shape is not assumed: `taggedVariant` lowercases whatever tag
+    // it finds, and the raw payload is logged so a mismatch is diagnosable from
+    // logcat instead of guesswork.
+    println("[VrcxCore] authState raw=${payload.toString().take(300)}")
+
     val (variant, body) = taggedVariant(obj)
     return when (variant) {
-        "Authenticated" -> AuthState.Authed
-        "Challenge" -> challengeState(body)
-        "DeviceApproval" ->
+        "authenticated" -> AuthState.Authed
+        "challenge" -> challengeState(body)
+        "deviceapproval" ->
             // The phone has no device-approval screen yet; surface it as a
             // message rather than pretending it succeeded.
             AuthState.Unauthorized("device approval required")
-        "Failed" -> AuthState.Unauthorized(
+        "failed" -> AuthState.Unauthorized(
             body["reason"]?.jsonPrimitive?.content ?: "login failed"
         )
         else -> AuthState.Unauthorized("unknown login state: $variant")
     }
 }
 
-/** Returns the variant name and its payload, tolerating both tagging styles. */
+/**
+ * Returns the lowercased variant name and its payload.
+ *
+ * Handles all three plausible encodings of the core's `LoginSessionState`:
+ * externally tagged (`{"Challenge": {...}}`), adjacently/internally tagged via a
+ * `kind`/`type`/`status` field, or lowercase variants from `rename_all`.
+ */
 private fun taggedVariant(obj: JsonObject): Pair<String, JsonObject> {
     val known = listOf("Authenticated", "Challenge", "DeviceApproval", "Failed")
-    known.firstOrNull { obj.containsKey(it) }?.let { name ->
-        return name to (obj[name]?.jsonObject ?: JsonObject(emptyMap()))
+    // Externally tagged, exact or any casing.
+    obj.keys.firstOrNull { key -> known.any { it.equals(key, ignoreCase = true) } }
+        ?.let { key ->
+            val value = obj[key]
+            val body = value as? JsonObject ?: obj
+            return known.first { it.equals(key, ignoreCase = true) }.lowercase() to body
+        }
+    // Internally tagged.
+    for (tagField in listOf("kind", "type", "status", "variant")) {
+        val tag = (obj[tagField] as? JsonPrimitive)?.content ?: continue
+        known.firstOrNull { it.equals(tag, ignoreCase = true) }?.let {
+            return it.lowercase() to obj
+        }
     }
-    val tag = (obj["kind"] ?: obj["type"])?.jsonPrimitive?.content ?: return "" to obj
-    return tag to obj
+    return "" to obj
 }
 
 /**
@@ -75,7 +97,7 @@ private fun challengeState(body: JsonObject): AuthState {
 fun currentUserJsonFromCore(payload: JsonElement): String? {
     val obj = payload as? JsonObject ?: return null
     val (variant, body) = taggedVariant(obj)
-    if (variant != "Authenticated") return null
+    if (variant != "authenticated") return null
     val session = body["session"]?.jsonObject ?: return null
     return session["currentUser"]?.toString()
 }
@@ -90,7 +112,7 @@ data class CoreLogin(val state: AuthState, val userJson: String?, val attemptId:
 fun attemptIdFromCore(payload: JsonElement): String? {
     val obj = payload as? JsonObject ?: return null
     val (variant, body) = taggedVariant(obj)
-    if (variant != "Challenge" && variant != "DeviceApproval") return null
+    if (variant != "challenge" && variant != "deviceapproval") return null
     return body["attemptId"]?.jsonPrimitive?.content
 }
 
@@ -98,7 +120,8 @@ fun attemptIdFromCore(payload: JsonElement): String? {
 fun challengeMethodFromCore(payload: JsonElement): String? {
     val obj = payload as? JsonObject ?: return null
     val (variant, body) = taggedVariant(obj)
-    if (variant != "Challenge") return null
+    if (variant != "challenge") return null
     return body["mode"]?.jsonPrimitive?.content
 }
+
 

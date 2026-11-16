@@ -86,6 +86,16 @@ class CoreHttpEngine(
     override val config: HttpClientEngineConfig = HttpClientEngineConfig(),
 ) : HttpClientEngineBase("vrcx-core") {
 
+    /**
+     * Ktor throws `IllegalArgumentException: Engine doesn't support
+     * HttpTimeoutCapability` at request time unless the engine declares the
+     * capability, because `configureApiClient` installs HttpTimeout. The timeout is
+     * honoured in `execute` below (via the capability when present, otherwise the
+     * 60 s fallback).
+     */
+    override val supportedCapabilities: Set<io.ktor.client.engine.HttpClientEngineCapability<*>> =
+        setOf(io.ktor.client.plugins.HttpTimeoutCapability)
+
     @OptIn(InternalAPI::class)
     override suspend fun execute(data: HttpRequestData): HttpResponseData {
         // requestTime 必须是「开始发请求」的时间，Ktor 用它算耗时，所以先取。
@@ -109,6 +119,10 @@ class CoreHttpEngine(
                 message = "VRCX core 尚未就绪：请求未发送（${data.method.value} ${data.url}）",
             )
         }
+
+        // Evidence that VRCM's own API client goes through the core: every proxied
+        // request shows up here. println lands in logcat as System.out.
+        println("[VrcxCore] proxy ${data.method.value} ${data.url}")
 
         return try {
             // Ktor's HttpTimeout capability is not forwarded to this engine, so a
@@ -291,3 +305,4 @@ private fun ByteArray.toBodyElement(): JsonElement =
  * surfaces as an error instead of a hung UI.
  */
 private const val CORE_REQUEST_TIMEOUT_MS = 60_000L
+

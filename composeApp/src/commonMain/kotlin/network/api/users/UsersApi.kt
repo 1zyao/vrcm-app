@@ -1,5 +1,11 @@
 package io.github.vrcmteam.vrcm.network.api.users
 
+import io.github.vrcmteam.vrcm.mobilecore.searchUsersGet
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import io.github.vrcmteam.vrcm.network.api.attributes.USERS_API_PREFIX
 import io.github.vrcmteam.vrcm.network.api.attributes.USER_NOTES_API_PREFIX
 import io.github.vrcmteam.vrcm.network.api.attributes.VRChatResponse
@@ -34,13 +40,21 @@ class UsersApi(private val client: HttpClient) {
         sort: String = "relevance",
         n: Int = 20,
         offset: Int = 0,
-    ) =
-        client.get(USERS_API_PREFIX) {
-            parameter("sort", sort)
-            parameter("n", n)
-            parameter("offset", offset)
-            parameter("search", search)
-        }.checkSuccess<List<SearchUserData>>()
+    ): List<SearchUserData> {
+        // Served by the backend's search command, not by a request from this app.
+        // `sort` is deliberately not sent: the backend's parameter type validates it
+        // against an enum, and VRChat already defaults to relevance.
+        val params = buildJsonObject {
+            put("search", search)
+            put("n", n)
+            put("offset", offset)
+        }
+        val result = vrcxCoreClient().searchUsersGet(params)
+        return Json.decodeFromString(
+            ListSerializer(SearchUserData.serializer()),
+            result.bodyOrThrow()
+        )
+    }
 
     suspend fun updateUserInfo(userId: String, updateUserInfoData: UpdateUserInfoData) = client.put("$USERS_API_PREFIX/$userId"){
         setBody(updateUserInfoData)
@@ -207,6 +221,7 @@ private data class PlayerModerationData(
     val targetUserId: String,
     val type: String,
 )
+
 
 
 

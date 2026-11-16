@@ -29,7 +29,14 @@ fun startVrcxCore(filesDir: String): VrcxCoreClient? {
     }.onFailure { Log.e("VrcxCore", "core failed to start", it) }.getOrNull()
 }
 
-actual fun vrcxCoreClient(): VrcxCoreClient =
-    requireNotNull(endpoint) { "VRCX-0 core has not been started yet" }
+actual fun vrcxCoreClient(): VrcxCoreClient {
+    // A configured backend wins: the app is then a pure frontend of a standalone
+    // VRCX backend and the in-process core is not used at all.
+    VrcxBackend.baseUrlOverride?.takeIf { it.isNotBlank() }?.let { url ->
+        return VrcxCoreClient(url.trimEnd('/'), token = "")
+    }
+    return requireNotNull(endpoint) { "no VRCX backend configured and the in-process core is not running" }
+}
 
-actual fun isVrcxCoreReady(): Boolean = endpoint != null
+actual fun isVrcxCoreReady(): Boolean = VrcxBackend.isRemote || endpoint != null
+

@@ -1,5 +1,8 @@
 package io.github.vrcmteam.vrcm.network.api.auth
 
+import io.github.vrcmteam.vrcm.mobilecore.currentUserGet
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
+import kotlinx.serialization.json.Json
 import io.github.vrcmteam.vrcm.network.api.attributes.AUTH_API_PREFIX
 import io.github.vrcmteam.vrcm.network.api.attributes.AuthState
 import io.github.vrcmteam.vrcm.network.api.attributes.AuthType
@@ -38,7 +41,14 @@ class AuthApi(
         check(response.success) { "Device approval was not accepted" }
     }
 
-    suspend fun currentUser(): CurrentUserData = userRes().checkSuccess()
+    /**
+     * Current user, answered by the backend's own command
+     * (`app__vrchat_auth_current_user_get`) rather than a request from this app.
+     */
+    suspend fun currentUser(): CurrentUserData {
+        val result = vrcxCoreClient().currentUserGet()
+        return Json.decodeFromString(CurrentUserData.serializer(), result.bodyOrThrow())
+    }
 
 
     suspend fun userRes(username: String? = null, password: String? = null) =

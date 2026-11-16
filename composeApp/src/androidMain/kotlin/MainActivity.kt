@@ -49,6 +49,20 @@ class MainActivity : ComponentActivity() {
                 notificationLaunchInbox.submit(destination, targetId)
             }
         }
+        // A backend URL in files/backend.url turns this app into a frontend of a
+        // standalone VRCX node (server, or desktop on the LAN) instead of using the
+        // in-process core. That is the intended topology.
+        runCatching {
+            val override = java.io.File(filesDir, "backend.url")
+                .takeIf { it.isFile }
+                ?.readText()
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+            if (override != null) {
+                io.github.vrcmteam.vrcm.mobilecore.VrcxBackend.baseUrlOverride = override
+                Log.i("VrcxCore", "backend override: $override")
+            }
+        }
         // VRCX-0 core: starts the in-process Rust runtime and its loopback
         // command bus. Everything below talks HTTP to it; nothing else in the app
         // talks to VRChat directly.

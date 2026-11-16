@@ -26,3 +26,7 @@ captures
 # VRCX-0 core: built by scripts/build-core.ps1, never committed
 composeApp/src/androidMain/jniLibs/
 
+
+# Local build outputs (iOS IPA, etc.) - not sources
+artifacts/
+

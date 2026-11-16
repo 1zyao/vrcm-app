@@ -276,7 +276,11 @@ private val imageLoaderDefinition: Definition<ImageLoader> = {
     val context = get<PlatformContext>()
     ImageLoader.Builder(context)
         .components {
-            add(KtorNetworkFetcherFactory(get<HttpClient>()))
+            // Images must NOT go through the core: app__web_execute returns the body
+            // as a String, so binary payloads are destroyed. This dedicated client
+            // keeps the platform engine and hits the CDN directly - avatar thumbnails
+            // and world images are public URLs, no cookies required.
+            add(KtorNetworkFetcherFactory(HttpClient()))
         }
         .diskCache {
             DiskCache.Builder()

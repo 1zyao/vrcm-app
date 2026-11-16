@@ -64,10 +64,13 @@ suspend fun VrcxCoreClient.feedRows(
     mode: String = "lookup"
 ): JsonElement = invoke(
     "app__feed_rows_query",
+    // Canonical envelope: the input is wrapped in the command's parameter name.
     buildJsonObject {
-        put("userId", userId)
-        put("mode", mode)
-        put("maxEntries", maxEntries)
+        put("query", buildJsonObject {
+            put("userId", userId)
+            put("mode", mode)
+            put("maxEntries", maxEntries)
+        })
     }
 )
 
@@ -200,3 +203,101 @@ suspend fun VrcxCoreClient.debugEmitEvent(name: String, payload: JsonElement = J
     )
 }
 
+
+/**
+ * Reads VRCX's feed read model from the backend.
+ *
+ * This is the whole point of the new topology: the rows were recorded by a node
+ * that was online when the events happened (desktop or server), synced to the
+ * backend's SQLite, and the phone merely displays them. No VRChat request is made
+ * by this app for it.
+ *
+ * `mode`: "lookup" (the account's feed), "search" (with `search`), "instance".
+ * `userId` is required - the feed tables are per-user prefixed.
+ */
+suspend fun VrcxCoreClient.feedQuery(
+    userId: String,
+    mode: String = "lookup",
+    maxEntries: Int = 60,
+    search: String = "",
+    cursor: JsonObject? = null
+): JsonElement = invoke(
+    "app__feed_rows_query",
+    // Canonical envelope: the input is wrapped in a key named after the command's
+    // parameter, exactly as the desktop and cloud frontends send it
+    // (`arg(&args, "query")`). Sending it bare fails with `missing field query`.
+    buildJsonObject {
+        put("query", buildJsonObject {
+            put("userId", userId)
+            put("mode", mode)
+            put("maxEntries", maxEntries)
+            if (search.isNotEmpty()) put("search", search)
+            if (cursor != null) put("cursor", cursor)
+        })
+    }
+)
+
+
+/**
+ * Favourites read model from the backend.
+ *
+ * `kind` is one of `avatar`, `world`, `friend` - read out of the command's own error
+ * message rather than guessed. The rows are the recording node's favourites, not the
+ * phone's: the phone never asks VRChat for them.
+ */
+suspend fun VrcxCoreClient.favoriteList(kind: String): JsonElement = invoke(
+    "app__favorite_list",
+    buildJsonObject { put("kind", kind) }
+)
+
+/** Local favourite snapshot; same `kind` argument as [favoriteList]. */
+suspend fun VrcxCoreClient.favoriteLocalSnapshot(kind: String): JsonElement = invoke(
+    "app__favorite_local_snapshot",
+    buildJsonObject { put("kind", kind) }
+)
+
+/**
+ * A VRChat response as the backend relays it: HTTP status plus the untouched body.
+ *
+ * The `app__vrchat_*` family answers with VRChat's own JSON, so the DTOs the app already
+ * has decode straight out of [data] - no parallel schema is introduced.
+ */
+data class VrchatResult(val status: Int, val data: String) {
+    /** Body, or a readable failure when the backend could not reach VRChat. */
+    fun bodyOrThrow(): String {
+        if (status !in 200..299) {
+            throw VrcxCoreException("http$status", "backend answered $status: ${data.take(200)}")
+        }
+        return data
+    }
+}
+
+private fun JsonElement.toVrchatResult(): VrchatResult {
+    val obj = jsonObject
+    return VrchatResult(
+        status = obj["status"]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+        data = obj["data"]?.jsonPrimitive?.content ?: "",
+    )
+}
+
+/** Current user, canonical name `app__vrchat_auth_current_user_get`. */
+suspend fun VrcxCoreClient.currentUserGet(): VrchatResult =
+    invoke("app__vrchat_auth_current_user_get", buildJsonObject { }).toVrchatResult()
+
+/** Relationship to a user; the argument key is `input`, the way cloud wraps it. */
+suspend fun VrcxCoreClient.friendStatusGet(userId: String): VrchatResult = invoke(
+    "app__vrchat_friend_status_get",
+    buildJsonObject { put("input", buildJsonObject { put("userId", userId) }) }
+).toVrchatResult()
+
+/** User search; `params` is the backend's own search-parameter object. */
+suspend fun VrcxCoreClient.searchUsersGet(params: JsonObject): VrchatResult = invoke(
+    "app__vrchat_search_users_get",
+    buildJsonObject { put("input", buildJsonObject { put("params", params) }) }
+).toVrchatResult()
+
+/** Group search; same envelope as [searchUsersGet]. */
+suspend fun VrcxCoreClient.searchGroupsGet(params: JsonObject): VrchatResult = invoke(
+    "app__vrchat_search_groups_get",
+    buildJsonObject { put("input", buildJsonObject { put("params", params) }) }
+).toVrchatResult()
