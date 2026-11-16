@@ -4,6 +4,9 @@ import io.github.vrcmteam.vrcm.core.shared.AccountWebSocketEvent
 import io.github.vrcmteam.vrcm.core.shared.AccountSessionToken
 import io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
 import io.github.vrcmteam.vrcm.network.api.attributes.NotificationType
+import io.github.vrcmteam.vrcm.mobilecore.NotificationSeenItem
+import io.github.vrcmteam.vrcm.mobilecore.notificationMarkSeenBatch
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import io.github.vrcmteam.vrcm.network.api.notification.NotificationApi
 import io.github.vrcmteam.vrcm.network.api.users.UsersApi
 import io.github.vrcmteam.vrcm.network.websocket.data.type.NotificationEvents
@@ -302,12 +305,15 @@ class NotificationCenterModel(
         if (item.seen) return
         launchReservedMutation(item, PendingNotificationMutation.Read) { token ->
             val result = runNotificationMutation(token) {
-                when (item.readTarget) {
-                    NotificationReadTarget.PIPELINE_SEE ->
-                        notificationApi.markPipelineNotificationAsRead(item.id)
-                    NotificationReadTarget.LEGACY_SEE ->
-                        notificationApi.markLegacyNotificationAsRead(item.id)
+                // One command covers both inbox generations: the backend keys its remote call off
+                // the version, so 1 means the legacy item and 2 the pipeline one.
+                val version = when (item.readTarget) {
+                    NotificationReadTarget.PIPELINE_SEE -> 2
+                    NotificationReadTarget.LEGACY_SEE -> 1
                 }
+                vrcxCoreClient().notificationMarkSeenBatch(
+                    listOf(NotificationSeenItem(item.id, version, item.type)),
+                )
             } ?: return@launchReservedMutation token
             result
                 .onNotificationFailure()
@@ -563,3 +569,6 @@ internal fun AccountWebSocketEvent.notificationRefreshToken(
     }
     return token.takeIf { refreshRequired }
 }
+
+
+

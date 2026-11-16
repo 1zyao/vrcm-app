@@ -456,6 +456,42 @@ suspend fun VrcxCoreClient.avatarListByUserGet(
     }
 ).toVrchatResult()
 
+/** One notification to mark seen, in the backend's own shape. */
+data class NotificationSeenItem(
+    val id: String,
+    /** 1 = the legacy `/auth/user/notifications` item, 2 = the pipeline notification. */
+    val version: Int,
+    val type: String,
+)
+
+/**
+ * Marks notifications seen (`app__notification_mark_seen_batch`).
+ *
+ * The backend settles its local rows first and only then calls VRChat, so a failure leaves the
+ * phone's own state correct instead of diverging from the server.
+ */
+suspend fun VrcxCoreClient.notificationMarkSeenBatch(
+    items: List<NotificationSeenItem>,
+): JsonElement = invoke(
+    "app__notification_mark_seen_batch",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put(
+                "items",
+                JsonArray(
+                    items.map { item ->
+                        buildJsonObject {
+                            put("id", item.id)
+                            put("version", item.version)
+                            put("type", item.type)
+                        }
+                    },
+                ),
+            )
+        })
+    },
+)
+
 /**
  * File analysis for one asset variant (`app__vrchat_auth_file_analysis_get`).
  *
@@ -630,6 +666,7 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
 
 
 
