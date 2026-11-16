@@ -396,8 +396,7 @@ suspend fun VrcxCoreClient.groupGet(
 suspend fun VrcxCoreClient.instanceGet(
     worldId: String,
     instanceId: String,
-): VrchatResult = invoke(
-    "app__vrchat_instance_get",
+): VrchatResult = invoke(    "app__vrchat_instance_get",
     buildJsonObject {
         put("input", buildJsonObject {
             put("worldId", worldId)
@@ -405,6 +404,30 @@ suspend fun VrcxCoreClient.instanceGet(
         })
     }
 ).toVrchatResult()
+
+/**
+ * Notification list from the core's own database (cloud's `app__notification_list_query`).
+ *
+ * `filters` are the notification type names ("friendRequest", …); an empty list means all types.
+ */
+suspend fun VrcxCoreClient.notificationListQuery(
+    userId: String,
+    limit: Int = 100,
+    filters: List<String> = emptyList(),
+    includeUnseen: Boolean = true,
+): JsonElement = invoke(
+    "app__notification_list_query",
+    buildJsonObject {
+        put("query", buildJsonObject {
+            put("userId", userId)
+            put("limit", limit)
+            put("includeUnseen", includeUnseen)
+            if (filters.isNotEmpty()) {
+                put("filters", JsonArray(filters.map { JsonPrimitive(it) }))
+            }
+        })
+    }
+)
 
 /**
  * The favourites baseline: groups with capacity/count, plus the stored favourite limits.
