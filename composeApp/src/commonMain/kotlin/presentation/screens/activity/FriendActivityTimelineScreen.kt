@@ -338,15 +338,9 @@ private fun ActivityTimelineFilters(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // Meetup ("相遇") is deliberately absent: it is VRCM's own construction from what it
-        // observed live, and VRCX has no such feed event, so offering the chip would promise
-        // history that does not exist.
-        items(
-            FriendActivityTimelineFilter.entries.filter {
-                it != FriendActivityTimelineFilter.Meetup
-            },
-            key = { it.name },
-        ) { option ->
+        // Offered filters come from one place, so the chip row and the dropdown cannot drift
+        // apart (Meetup is excluded there, for the reason documented on `selectable`).
+        items(FriendActivityTimelineFilter.selectable, key = { it.name }) { option ->
             AppFilterChip(
                 selected = option == filter,
                 onClick = { onFilterSelected(option) },
@@ -449,3 +443,4 @@ internal fun FriendActivityEvent.navigableWorldId(): String? {
 }
 
 private const val LOAD_MORE_THRESHOLD = 6
+

@@ -454,7 +454,7 @@ private fun HomeTabRow(
                             HomeTab.Activity -> HomeTabOptionsMenu(
                                 expanded = menuTab == tab,
                                 onDismissRequest = dismiss,
-                                options = FriendActivityTimelineFilter.entries,
+                                options = FriendActivityTimelineFilter.selectable,
                                 selected = activityFilter,
                                 label = { it.label() },
                                 onSelected = onActivityFilterSelected,
@@ -893,3 +893,4 @@ private fun HomeDestination.presentation(): MainDestinationPresentation = when (
         AppIcons.NotificationsFill,
     )
 }
+

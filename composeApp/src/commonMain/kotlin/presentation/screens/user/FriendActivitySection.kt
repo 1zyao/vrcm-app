@@ -33,6 +33,8 @@ import io.github.vrcmteam.vrcm.presentation.designsystem.AppShapes
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppSheet
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppSurface
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppText
+import io.github.vrcmteam.vrcm.network.api.attributes.UserStatus
+import io.github.vrcmteam.vrcm.presentation.theme.GameColor
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppTheme
 import io.github.vrcmteam.vrcm.presentation.designsystem.rememberAppSheetState
 import io.github.vrcmteam.vrcm.presentation.extensions.ignoredFormat
@@ -178,7 +180,17 @@ internal fun ActivityEventRow(
         AppSurface(
             modifier = Modifier.padding(top = 7.dp).size(8.dp),
             shape = CircleShape,
-            color = AppTheme.colors.tint,
+            // The dot reflects the event, not a fixed accent: a status change shows that
+            // status's colour (online green / join me blue / ask me yellow / busy red), and
+            // anything else gets a neutral mark. It used to be the tint colour for every row,
+            // which read as "welcomed" on all of them.
+            color = when (event.type) {
+                FriendActivityEventType.StatusChanged ->
+                    GameColor.Status.fromValue(event.currentValue?.toUserStatus())
+                FriendActivityEventType.Offline -> GameColor.Status.Offline
+                FriendActivityEventType.Online -> GameColor.Status.Online
+                else -> AppTheme.colors.tertiaryLabel
+            },
             content = {},
         )
         Column(
@@ -375,3 +387,14 @@ private fun String.activityStatus(): String? {
     }
     return (listOf(status) + values.drop(1)).joinToString(" · ")
 }
+
+/** Status text as the feed stores it ("ask me", "busy", ...) mapped back to the enum. */
+internal fun String?.toUserStatus(): UserStatus? = when (this?.trim()?.lowercase()?.replace(" ", "")) {
+    "active" -> UserStatus.Active
+    "joinme" -> UserStatus.JoinMe
+    "askme" -> UserStatus.AskMe
+    "busy" -> UserStatus.Busy
+    "offline" -> UserStatus.Offline
+    else -> null
+}
+

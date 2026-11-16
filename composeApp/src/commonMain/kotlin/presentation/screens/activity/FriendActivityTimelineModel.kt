@@ -28,6 +28,19 @@ enum class FriendActivityTimelineFilter(internal val eventTypes: Set<FriendActiv
     Meetup(setOf(FriendActivityEventType.Met, FriendActivityEventType.Left)),
     // 首页按序号恢复已选分类，新增项放在末尾以保留现有选择。
     Avatar(setOf(FriendActivityEventType.AvatarChanged)),
+    ;
+
+    companion object {
+        /**
+         * Filters offered in the UI.
+         *
+         * Meetup ("相遇") is left out: it is VRCM's own construction from what it observed live
+         * and VRCX has no such feed event, so offering it would promise history that does not
+         * exist. It stays in the enum because the selected filter is persisted by ordinal.
+         */
+        val selectable: List<FriendActivityTimelineFilter>
+            get() = entries.filter { it != Meetup }
+    }
 }
 
 sealed interface FriendActivityTimelineState {

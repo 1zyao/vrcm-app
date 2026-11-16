@@ -2,6 +2,7 @@ package io.github.vrcmteam.vrcm.mobilecore
 
 import io.github.vrcmteam.vrcm.core.shared.AccountSessionToken
 import io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
+import io.github.vrcmteam.vrcm.service.FriendActivityAccessType
 import io.github.vrcmteam.vrcm.service.FriendActivityEvent
 import io.github.vrcmteam.vrcm.service.FriendActivityEventType
 import io.github.vrcmteam.vrcm.presentation.screens.activity.FriendActivityTimelineCursor
@@ -163,11 +164,33 @@ private fun JsonObject.toEvent(
         currentValue = currentValue,
         worldId = location?.substringBefore(':')?.takeIf { it.startsWith("wrld_") },
         worldName = worldName,
-        accessType = null,
+        accessType = location?.toAccessType(),
     )
+}
+
+/**
+ * Access type from a VRChat location string.
+ *
+ * Mirrors VRCX's own parser (`shared/utils/location.ts`, applyAccessType): invite+ needs
+ * `~private(` AND `~canRequestInvite` together, and the private case is tested first because one
+ * string can carry several markers.
+ */
+private fun String.toAccessType(): FriendActivityAccessType {
+    val canRequestInvite = contains("~canRequestInvite")
+    return when {
+        contains("~private(") ->
+            if (canRequestInvite) FriendActivityAccessType.InvitePlus
+            else FriendActivityAccessType.Invite
+        contains("~friends(") -> FriendActivityAccessType.Friends
+        contains("~hidden(") -> FriendActivityAccessType.FriendsPlus
+        contains("~group(") -> FriendActivityAccessType.Group
+        startsWith("wrld_") -> FriendActivityAccessType.Public
+        else -> FriendActivityAccessType.Unknown
+    }
 }
 
 private fun JsonObject.str(key: String): String? =
     runCatching { this[key]?.jsonPrimitive?.contentOrNull }.getOrNull()
+
 
 
