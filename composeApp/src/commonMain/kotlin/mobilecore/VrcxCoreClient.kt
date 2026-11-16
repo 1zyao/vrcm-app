@@ -476,6 +476,17 @@ suspend fun VrcxCoreClient.searchWorldsGet(
 ).toVrchatResult()
 
 /**
+ * Blocked/muted users from the core's own database (`app__local_moderation_list`).
+ *
+ * Cloud reads `ownerUserId` as a bare top-level argument, so this is the one command here that is
+ * not wrapped in `input` or `query`.
+ */
+suspend fun VrcxCoreClient.localModerationList(ownerUserId: String): JsonElement = invoke(
+    "app__local_moderation_list",
+    buildJsonObject { put("ownerUserId", ownerUserId) }
+)
+
+/**
  * Notification list from the core's own database (cloud's `app__notification_list_query`).
  *
  * `filters` are the notification type names ("friendRequest", …); an empty list means all types.
@@ -485,8 +496,7 @@ suspend fun VrcxCoreClient.notificationListQuery(
     limit: Int = 100,
     filters: List<String> = emptyList(),
     includeUnseen: Boolean = true,
-): JsonElement = invoke(
-    "app__notification_list_query",
+): JsonElement = invoke(    "app__notification_list_query",
     buildJsonObject {
         put("query", buildJsonObject {
             put("userId", userId)
