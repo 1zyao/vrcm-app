@@ -456,6 +456,26 @@ suspend fun VrcxCoreClient.avatarListByUserGet(
     }
 ).toVrchatResult()
 
+/** Favourite worlds, optionally for another owner (`app__vrchat_favorite_worlds_get`). */
+suspend fun VrcxCoreClient.favoriteWorldsGet(
+    n: Int = 50,
+    offset: Int = 0,
+    ownerId: String = "",
+    userId: String = "",
+    tag: String = "",
+): VrchatResult = invoke(
+    "app__vrchat_favorite_worlds_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("n", n)
+            put("offset", offset)
+            put("ownerId", ownerId)
+            put("userId", userId)
+            put("tag", tag)
+        })
+    }
+).toVrchatResult()
+
 /**
  * Details for favourite entities (`app__favorite_details_hydrate`).
  *
@@ -588,5 +608,6 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
 
 

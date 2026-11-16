@@ -7,6 +7,7 @@ import io.github.vrcmteam.vrcm.network.api.worlds.data.FavoritedWorld
 import io.github.vrcmteam.vrcm.network.api.worlds.data.WorldData
 import io.github.vrcmteam.vrcm.network.api.worlds.data.WorldPublishStatus
 import io.github.vrcmteam.vrcm.network.api.worlds.data.WorldUpdateData
+import io.github.vrcmteam.vrcm.mobilecore.favoriteWorldsGet
 import io.github.vrcmteam.vrcm.mobilecore.instanceGet
 import io.github.vrcmteam.vrcm.mobilecore.searchWorldsGet
 import kotlinx.serialization.builtins.ListSerializer
@@ -217,24 +218,40 @@ class WorldsApi(private val client: HttpClient)  {
         platform: String? = null,
         userId: String? = null,
         ownerId: String? = null
-    ): List<FavoritedWorld> =
-        client.get("$WORLDS_API_PREFIX/favorites") {
-            parameter("n", n)
-            featured?.let { parameter("featured", it) }
-            sort?.let { parameter("sort", it) }
-            order?.let { parameter("order", it) }
-            offset?.let { parameter("offset", it) }
-            search?.let { parameter("search", it) }
-            tag?.let { parameter("tag", it) }
-            notag?.let { parameter("notag", it) }
-            releaseStatus?.let { parameter("releaseStatus", it) }
-            maxUnityVersion?.let { parameter("maxUnityVersion", it) }
-            minUnityVersion?.let { parameter("minUnityVersion", it) }
-            platform?.let { parameter("platform", it) }
-            userId?.let { parameter("userId", it) }
-            ownerId?.let { parameter("ownerId", it) }
-        }.checkSuccess()
+    ): List<FavoritedWorld> {
+        // Served by the backend's favourite-worlds command, which takes an owner and a group tag -
+        // so this covers both the signed-in user's favourites and another user's.
+        //
+        // The command supports the parameters below and nothing else. The rest of the signature is
+        // kept so existing call sites compile, but a caller that starts using one of the
+        // unsupported filters gets a loud failure instead of quietly unfiltered results.
+        val unsupported = listOfNotNull(
+            featured?.let { "featured" },
+            sort?.let { "sort" },
+            order?.let { "order" },
+            search?.let { "search" },
+            notag?.let { "notag" },
+            releaseStatus?.let { "releaseStatus" },
+            maxUnityVersion?.let { "maxUnityVersion" },
+            minUnityVersion?.let { "minUnityVersion" },
+            platform?.let { "platform" },
+        )
+        require(unsupported.isEmpty()) {
+            "favourite worlds cannot be filtered by ${unsupported.joinToString()} through the backend"
+        }
+        return CoreJson.decodeFromString(
+            ListSerializer(FavoritedWorld.serializer()),
+            vrcxCoreClient().favoriteWorldsGet(
+                n = n,
+                offset = offset ?: 0,
+                ownerId = ownerId.orEmpty(),
+                userId = userId.orEmpty(),
+                tag = tag.orEmpty(),
+            ).bodyOrThrow(),
+        )
+    }
 }
+
 
 
 
