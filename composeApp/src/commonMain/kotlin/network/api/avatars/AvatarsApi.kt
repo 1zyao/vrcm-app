@@ -9,6 +9,9 @@ import io.github.vrcmteam.vrcm.network.api.avatars.data.AvatarSelectionData
 import io.github.vrcmteam.vrcm.network.api.avatars.data.AvatarStyle
 import io.github.vrcmteam.vrcm.network.api.avatars.data.AvatarUpdateData
 import io.github.vrcmteam.vrcm.network.api.auth.data.CurrentUserData
+import io.github.vrcmteam.vrcm.mobilecore.FavoritesBaselineCache
+import io.github.vrcmteam.vrcm.mobilecore.favoriteDetailsHydrate
+import io.github.vrcmteam.vrcm.mobilecore.favoriteEntityIds
 import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.avatarListByUserGet
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
@@ -61,16 +64,24 @@ class AvatarsApi(private val client: HttpClient) {
         sort: String? = null,
         order: String? = null,
         featured: Boolean? = null,
-    ): List<AvatarData> =
-        client.get("$AVATARS_API_PREFIX/favorites") {
-            parameter("n", n)
-            parameter("offset", offset)
-            tag?.let { parameter("tag", it) }
-            search?.let { parameter("search", it) }
-            sort?.let { parameter("sort", it) }
-            order?.let { parameter("order", it) }
-            featured?.let { parameter("featured", it) }
-        }.checkSuccess()
+    ): List<AvatarData> {
+        // The ids come from the favourites snapshot; the details come from the backend's hydrate
+        // command, which fetches them on demand (`requestedIds`) instead of asking VRChat here.
+        val client = vrcxCoreClient()
+        val snapshot = FavoritesBaselineCache.snapshot(client)
+        val ids = snapshot.favoriteEntityIds("avatar", tag)
+        val details = client.favoriteDetailsHydrate("avatar", ids)
+        val rows = ids.mapNotNull { id ->
+            details[id]?.let { element ->
+                runCatching {
+                    CoreJson.decodeFromJsonElement(AvatarData.serializer(), element)
+                }.getOrNull()
+            }
+        }
+        val filtered = if (search.isNullOrBlank()) rows
+        else rows.filter { it.name.contains(search, ignoreCase = true) }
+        return filtered.drop(offset).take(n)
+    }
 
     /**
      * 获取用户的头像列表（分页）
@@ -145,4 +156,5 @@ class AvatarsApi(private val client: HttpClient) {
         }
     }
 }
+
 

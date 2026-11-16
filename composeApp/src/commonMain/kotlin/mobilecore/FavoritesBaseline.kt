@@ -3,6 +3,7 @@ package io.github.vrcmteam.vrcm.mobilecore
 import io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 
@@ -58,4 +59,28 @@ internal object FavoritesBaselineCache {
     }
 }
 
+
+
+/**
+ * Entity ids of one favourite kind, taken from VRChat's own favourite records.
+ *
+ * `remoteFavoritesById` is the only field that groups avatars, worlds and friends the same way, and
+ * each record carries the group name in `tags` - so one read serves every kind (the per-type maps
+ * are local-only views and miss remotely favourited entries).
+ */
+internal fun JsonObject.favoriteEntityIds(type: String, groupName: String? = null): List<String> {
+    val records = this["remoteFavoritesById"] as? kotlinx.serialization.json.JsonObject
+        ?: return emptyList()
+    return records.values.mapNotNull { element ->
+        val record = element as? kotlinx.serialization.json.JsonObject ?: return@mapNotNull null
+        val recordType = (record["type"] as? kotlinx.serialization.json.JsonPrimitive)
+            ?.contentOrNull
+        if (!recordType.equals(type, ignoreCase = true)) return@mapNotNull null
+        val tag = (record["tags"] as? kotlinx.serialization.json.JsonArray)
+            ?.mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
+            ?.firstOrNull()
+        if (groupName != null && tag != groupName) return@mapNotNull null
+        (record["favoriteId"] as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
+    }
+}
 

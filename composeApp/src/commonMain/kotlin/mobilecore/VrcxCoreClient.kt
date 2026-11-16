@@ -457,6 +457,32 @@ suspend fun VrcxCoreClient.avatarListByUserGet(
 ).toVrchatResult()
 
 /**
+ * Details for favourite entities (`app__favorite_details_hydrate`).
+ *
+ * The field that matters is `requestedIds`: measured on a cold database, a call carrying
+ * `requestedIds` returns details for those ids (and warms the backend's cache), while the same call
+ * carrying only `favoriteIds` returns none. So callers pass the ids they want back.
+ */
+suspend fun VrcxCoreClient.favoriteDetailsHydrate(
+    kind: String,
+    requestedIds: List<String>,
+): Map<String, JsonObject> {
+    if (requestedIds.isEmpty()) return emptyMap()
+    val response = invoke(
+        "app__favorite_details_hydrate",
+        buildJsonObject {
+            put("input", buildJsonObject {
+                put("kind", kind)
+                put("requestedIds", JsonArray(requestedIds.map { JsonPrimitive(it) }))
+            })
+        },
+    )
+    val details = runCatching { response.jsonObject["detailsById"] as? JsonObject }
+        .getOrNull() ?: return emptyMap()
+    return details.mapNotNull { (key, value) -> (value as? JsonObject)?.let { key to it } }.toMap()
+}
+
+/**
  * World search (`app__vrchat_search_worlds_get`).
  *
  * `params` is the backend's own search parameter object. Note what the core measured: sending
