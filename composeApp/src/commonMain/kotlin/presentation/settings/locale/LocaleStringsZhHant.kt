@@ -248,6 +248,7 @@ internal object LocaleStringsZhHant : LocaleStrings() {
     override val notificationFriendRequestAlert = "好友請求"
     override val notificationFriendRequestAlertDescription = "收到好友請求時提醒"
     override val notificationGroupInvite = "群組邀請"
+override val notificationInviteRequest = "請求邀請"
     override val notificationGroupAnnouncement = "群組通知"
     override val notificationGroupAnnouncementDescription = "已加入的群組發布公告、活動或管理訊息時提醒"
     override val notificationSectionServiceStatus = "服務狀態"
@@ -1156,5 +1157,6 @@ internal object LocaleStringsZhHant : LocaleStrings() {
     override val playerModerationCleanupPartialFailure = "已清除 %removed% 個目標，另有 %failed% 個目標清除失敗。"
     override val playerModerationCleanupFailure = "無法確認所選記錄已全部清除，請重新整理以查看目前狀態。"
 }
+
 
 

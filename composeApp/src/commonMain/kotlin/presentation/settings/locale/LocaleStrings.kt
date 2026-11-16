@@ -262,6 +262,8 @@ sealed class LocaleStrings {
     open val notificationFriendRequestAlert: String = "Friend requests"
     open val notificationFriendRequestAlertDescription: String = "Alerts for every incoming friend request"
     open val notificationGroupInvite: String = "Group invitation"
+    /** VRChat requestInvite notification type. */
+    open val notificationInviteRequest: String = "Request Invite"
     open val notificationGroupAnnouncement: String = "Group notifications"
     open val notificationGroupAnnouncementDescription: String =
         "Alerts for announcements, events, and management messages from groups you joined"

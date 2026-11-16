@@ -668,6 +668,8 @@ private fun NotificationTypeLabel(item: NotificationItemData) {
             item.type == NotificationType.FriendRequest.value -> strings.notificationFriendRequestAlert
             item.isGroupInvite -> strings.notificationGroupInvite
             isGroupNotificationType(item.type) -> strings.notificationGroupAnnouncement
+            // VRChat's requestInvite type; the wording is VRCX's own label for it.
+            item.type.equals("requestInvite", true) -> strings.notificationInviteRequest
             else -> item.type
         },
         style = AppTheme.type.caption2Emphasized,

@@ -38,6 +38,16 @@ class UsersApi(private val client: HttpClient) {
             vrcxCoreClient().userGet(userId).bodyOrThrow(),
         )
 
+    /**
+     * The user record as the backend returned it, undecoded.
+     *
+     * The profile screen has a raw-JSON view, and it is the only way to tell an empty bio from a
+     * field the decoder dropped - so this stays even though [fetchUser] returns the same data
+     * parsed.
+     */
+    suspend fun fetchUserRaw(userId: String): String =
+        vrcxCoreClient().userGet(userId).bodyOrThrow()
+
     suspend fun searchUser(
         search: String,
         sort: String = "relevance",

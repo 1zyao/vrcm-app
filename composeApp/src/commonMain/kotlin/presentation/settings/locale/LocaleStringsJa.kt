@@ -250,6 +250,7 @@ internal object LocaleStringsJa : LocaleStrings() {
     override val notificationFriendRequestAlert = "フレンド申請"
     override val notificationFriendRequestAlertDescription = "フレンド申請が届いたときに通知します"
     override val notificationGroupInvite = "グループ招待"
+override val notificationInviteRequest = "招待リクエスト"
     override val notificationGroupAnnouncement = "グループ通知"
     override val notificationGroupAnnouncementDescription = "参加中のグループの告知、イベント、管理メッセージを通知します"
     override val notificationSectionServiceStatus = "サービス状況"
@@ -1185,5 +1186,6 @@ internal object LocaleStringsJa : LocaleStrings() {
     override val playerModerationCleanupFailure =
         "選択した記録がすべて消去されたことを確認できません。更新して現在の状態を確認してください。"
 }
+
 
 

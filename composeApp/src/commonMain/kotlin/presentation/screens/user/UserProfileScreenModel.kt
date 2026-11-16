@@ -1020,11 +1020,20 @@ class UserProfileScreenModel internal constructor(
             loadCoordinator.runLoads(
                 forceRefresh = forceRefresh,
                 loadUser = {
-                    // The backend answers with the user object itself, so there is no second
-                    // body to decode here (this used to be a raw HttpResponse).
-                    val userResult = authService.reTryAuthCatching { usersApi.fetchUser(userId) }
-                    userResult.exceptionOrNull()?.let { error -> handleError(error) }
-                    val user = userResult.getOrNull()
+                    // Keep the raw payload: the profile's JSON dialog shows it, and it is what
+                    // tells an empty bio apart from a field the decoder dropped.
+                    val rawResult = authService.reTryAuthCatching { usersApi.fetchUserRaw(userId) }
+                    rawResult.exceptionOrNull()?.let { error -> handleError(error) }
+                    val rawJson = rawResult.getOrNull()
+                    val user = rawJson?.let {
+                        runCatching {
+                            io.github.vrcmteam.vrcm.mobilecore.CoreJson
+                                .decodeFromString(UserData.serializer(), it)
+                        }.onFailure { error -> handleError(error) }.getOrNull()
+                    }
+                    if (rawJson != null) {
+                        _userJson.value = rawJson.pretty()
+                    }
                     if (user != null) {
                             val publicProfile = authService.reTryAuthCatching {
                                 profileAppearanceApi.getPublicProfile(user.id)

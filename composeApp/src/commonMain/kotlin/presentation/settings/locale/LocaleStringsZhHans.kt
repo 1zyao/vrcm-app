@@ -248,6 +248,7 @@ internal object LocaleStringsZhHans : LocaleStrings() {
     override val notificationFriendRequestAlert = "好友请求"
     override val notificationFriendRequestAlertDescription = "收到好友请求时提醒"
     override val notificationGroupInvite = "群组邀请"
+override val notificationInviteRequest = "申请加入"
     override val notificationGroupAnnouncement = "群组通知"
     override val notificationGroupAnnouncementDescription = "已加入的群组发布公告、活动或管理消息时提醒"
     override val notificationSectionServiceStatus = "服务状态"
@@ -1157,6 +1158,7 @@ internal object LocaleStringsZhHans : LocaleStrings() {
     override val playerModerationCleanupPartialFailure = "已清除 %removed% 个目标，另有 %failed% 个目标清除失败。"
     override val playerModerationCleanupFailure = "无法确认所选记录已全部清除，请刷新查看当前状态。"
 }
+
 
 
 
