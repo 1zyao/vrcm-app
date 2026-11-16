@@ -805,10 +805,10 @@ internal object LocaleStringsJa : LocaleStrings() {
     override val friendActivityTimelineError = "フレンドの動向を読み込めませんでした"
     override val friendActivityLoadMoreError = "続きのアクティビティを読み込めませんでした"
     override val friendActivityFilterAll = "すべて"
-    override val friendActivityFilterPresence = "オンライン・オフライン"
-    override val friendActivityFilterLocation = "場所"
-    override val friendActivityFilterProfile = "プロフィール"
-    override val friendActivityFilterAvatar = "アバター"
+    override val friendActivityFilterPresence = "オンライン/オフライン"
+    override val friendActivityFilterLocation = "現在地の変動"
+    override val friendActivityFilterProfile = "ステータス/自己紹介"
+    override val friendActivityFilterAvatar = "アバター変更"
     override val friendActivityAvatarBefore = "変更前"
     override val friendActivityAvatarAfter = "変更後"
     override val friendActivityFilterMeetup = "合流"
@@ -1185,4 +1185,5 @@ internal object LocaleStringsJa : LocaleStrings() {
     override val playerModerationCleanupFailure =
         "選択した記録がすべて消去されたことを確認できません。更新して現在の状態を確認してください。"
 }
+
 

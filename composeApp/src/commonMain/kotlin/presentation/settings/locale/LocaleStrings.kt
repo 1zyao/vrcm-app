@@ -832,10 +832,10 @@ sealed class LocaleStrings {
     open val friendActivityTimelineError: String = "Friend activity could not be loaded"
     open val friendActivityLoadMoreError: String = "More activity could not be loaded"
     open val friendActivityFilterAll: String = "All"
-    open val friendActivityFilterPresence: String = "Online & offline"
-    open val friendActivityFilterLocation: String = "Location"
-    open val friendActivityFilterProfile: String = "Profile"
-    open val friendActivityFilterAvatar: String = "Avatar"
+    open val friendActivityFilterPresence: String = "Online / Offline"
+    open val friendActivityFilterLocation: String = "Location changes"
+    open val friendActivityFilterProfile: String = "Status / bio changes"
+    open val friendActivityFilterAvatar: String = "Avatar changes"
     open val friendActivityAvatarBefore: String = "Before"
     open val friendActivityAvatarAfter: String = "After"
     open val friendActivityFilterMeetup: String = "Meetups"
@@ -1244,4 +1244,5 @@ val strings: LocaleStrings
             else -> LocaleStringsEn
         }
     }
+
 

@@ -793,10 +793,10 @@ internal object LocaleStringsZhHans : LocaleStrings() {
     override val friendActivityTimelineError = "无法加载好友动态"
     override val friendActivityLoadMoreError = "无法加载更多好友动态"
     override val friendActivityFilterAll = "全部"
-    override val friendActivityFilterPresence = "上下线"
-    override val friendActivityFilterLocation = "位置"
-    override val friendActivityFilterProfile = "资料"
-    override val friendActivityFilterAvatar = "模型"
+    override val friendActivityFilterPresence = "上线/下线"
+    override val friendActivityFilterLocation = "位置变动"
+    override val friendActivityFilterProfile = "状态/简介变动"
+    override val friendActivityFilterAvatar = "模型变动"
     override val friendActivityAvatarBefore = "更换前"
     override val friendActivityAvatarAfter = "更换后"
     override val friendActivityFilterMeetup = "相遇"
@@ -1157,5 +1157,6 @@ internal object LocaleStringsZhHans : LocaleStrings() {
     override val playerModerationCleanupPartialFailure = "已清除 %removed% 个目标，另有 %failed% 个目标清除失败。"
     override val playerModerationCleanupFailure = "无法确认所选记录已全部清除，请刷新查看当前状态。"
 }
+
 
 
