@@ -116,17 +116,13 @@ class FriendActivityTimelineModel internal constructor(
     private val source: FriendActivityTimelineSource,
     private val pageSize: Int = DEFAULT_PAGE_SIZE,
 ) : ViewModel() {
-    // With a standalone VRCX backend configured, the timeline is served by its read
-    // model (app__feed_rows_query) instead of being recomputed from this device's own
-    // observations - that is history this phone could never have recorded itself.
+    // The timeline always comes from the core's read model (app__feed_rows_query). This device
+    // cannot have recorded the history it is showing - it arrives through core-to-core sync - so
+    // recomputing it from local observations would silently show an empty list on a fresh phone.
     constructor(service: FriendActivityService) : this(
-        if (io.github.vrcmteam.vrcm.mobilecore.VrcxBackend.isRemote) {
-            io.github.vrcmteam.vrcm.mobilecore.BackendFriendActivityTimelineSource(
-                io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient()
-            )
-        } else {
-            ServiceFriendActivityTimelineSource(service)
-        }
+        io.github.vrcmteam.vrcm.mobilecore.BackendFriendActivityTimelineSource(
+            io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient()
+        )
     )
 
     private val selectedFilter = MutableStateFlow(FriendActivityTimelineFilter.All)
