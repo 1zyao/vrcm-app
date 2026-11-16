@@ -154,7 +154,10 @@ class AuthService(
         if (isVrcxCoreReady()) {
             pendingCoreUserJson = null
             pendingCoreAttemptId = null
-            val core = runCatching { vrcxCoreClient().autoLoginStart() }.getOrNull()
+            val core = runCatching { vrcxCoreClient().autoLoginStart() }
+                .onFailure { println("[VrcxCore] restore failed: ${it::class.simpleName}: ${it.message}") }
+                .getOrNull()
+            println("[VrcxCore] restore -> ${core?.state?.let { it::class.simpleName }} hasUser=${core?.userJson != null}")
             if (core != null) {
                 if (core.state !is AuthState.Authed) return null
                 pendingCoreUserJson = core.userJson
@@ -508,7 +511,12 @@ class AuthService(
                 AuthCardPage.TTFACode -> "otp"
                 else -> error("not supported")
             }
-            val core = vrcxCoreClient().loginRespond(pendingCoreAttemptId!!, method, verifyCode)
+            println("[VrcxCore] verify -> attempt=${pendingCoreAttemptId} method=$method")
+            val core = runCatching {
+                vrcxCoreClient().loginRespond(pendingCoreAttemptId!!, method, verifyCode)
+            }.onFailure { println("[VrcxCore] verify failed: ${it::class.simpleName}: ${it.message}") }
+                .getOrThrow()
+            println("[VrcxCore] verify -> ${core.state::class.simpleName} hasUser=${core.userJson != null}")
             pendingCoreUserJson = core.userJson
             return try {
                 if (core.state is AuthState.Authed) {
@@ -536,6 +544,7 @@ class AuthService(
     ): Result<Unit> = runCatching {
         // When the core handed over the user JSON for this login, use it instead
         // of asking VRChat for the current user again.
+        println("[VrcxCore] emitAuthed coreUser=${pendingCoreUserJson != null}")
         val coreUser = pendingCoreUserJson?.let { json ->
             runCatching {
                 Json { ignoreUnknownKeys = true }.decodeFromString<CurrentUserData>(json)
@@ -603,7 +612,10 @@ class AuthService(
             // path stays compiled as a fallback for builds where the core did
             // not start.
             val state = if (isVrcxCoreReady()) {
-                val core = vrcxCoreClient().loginBasic(username, password)
+                val core = runCatching { vrcxCoreClient().loginBasic(username, password) }
+                    .onFailure { println("[VrcxCore] login failed: ${it::class.simpleName}: ${it.message}") }
+                    .getOrThrow()
+                println("[VrcxCore] login -> ${core.state::class.simpleName} attempt=${core.attemptId} hasUser=${core.userJson != null}")
                 // The core's session already carries the full user JSON, so
                 // emitAuthed must not fetch it again from VRChat.
                 pendingCoreUserJson = core.userJson
@@ -899,6 +911,7 @@ internal fun socketLocationToPresenceParts(location: String): Pair<String, Strin
 
 internal fun selectCurrentPresence(restPresence: Presence, socketPresence: Presence?): Presence =
     socketPresence ?: restPresence
+
 
 
 
