@@ -346,6 +346,14 @@ internal fun FriendActivityEvent.activityDetail(): String? {
         ?: worldId?.takeIf(String::isNotBlank)
     val access = accessType?.activityLabel()
     val status = currentValue?.activityStatus()
+    // A friend in a private instance has no world and no access type: the location string is
+    // literally "private". Saying "未知" there would be wrong - we know exactly what it is.
+    if ((type == FriendActivityEventType.Online ||
+            type == FriendActivityEventType.LocationChanged) &&
+        location == null && accessType == null
+    ) {
+        return strings.friendActivityPrivateLocation
+    }
     val parts = when (type) {
         FriendActivityEventType.Online,
         FriendActivityEventType.LocationChanged,

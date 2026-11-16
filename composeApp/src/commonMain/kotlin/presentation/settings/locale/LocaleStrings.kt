@@ -860,6 +860,8 @@ sealed class LocaleStrings {
     open val friendActivityAccessInvite: String = "Invite"
     open val friendActivityAccessGroup: String = "Group"
     open val friendActivityAccessUnknown: String = "Unknown"
+    /** A friend in a private instance: the location string is literally "private". */
+    open val friendActivityPrivateLocation: String = "Private room"
     open val recentWorldsTitle: String = "Recent Worlds"
     open val recentWorldsEmpty: String = "No recent worlds"
     open val inventoryTitle: String = "Inventory"

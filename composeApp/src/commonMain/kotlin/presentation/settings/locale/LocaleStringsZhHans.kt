@@ -821,6 +821,7 @@ internal object LocaleStringsZhHans : LocaleStrings() {
     override val friendActivityAccessInvite = "邀请"
     override val friendActivityAccessGroup = "群组"
     override val friendActivityAccessUnknown = "未知"
+    override val friendActivityPrivateLocation = "私人房间"
     override val recentWorldsTitle = "最近访问的世界"
     override val recentWorldsEmpty = "暂无最近访问的世界"
     override val inventoryTitle = "库存"

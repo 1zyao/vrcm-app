@@ -164,7 +164,10 @@ private fun JsonObject.toEvent(
         currentValue = currentValue,
         worldId = location?.substringBefore(':')?.takeIf { it.startsWith("wrld_") },
         worldName = worldName,
-        accessType = location?.toAccessType(),
+        // Only a real instance string has an access type. "private" (and "offline") mean the
+        // location is withheld, so they stay null and the UI shows the private-room label instead
+        // of "unknown".
+        accessType = location?.takeIf { it.startsWith("wrld_") }?.toAccessType(),
     )
 }
 
