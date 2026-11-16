@@ -8,6 +8,10 @@ import io.github.vrcmteam.vrcm.network.api.worlds.data.WorldData
 import io.github.vrcmteam.vrcm.network.api.worlds.data.WorldPublishStatus
 import io.github.vrcmteam.vrcm.network.api.worlds.data.WorldUpdateData
 import io.github.vrcmteam.vrcm.mobilecore.instanceGet
+import io.github.vrcmteam.vrcm.mobilecore.searchWorldsGet
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import io.github.vrcmteam.vrcm.mobilecore.worldGet
@@ -102,20 +106,28 @@ class WorldsApi(private val client: HttpClient)  {
         releaseStatus: String? = null,
         tag: String? = null,
         notag: String? = null
-    ): List<WorldData> =
-        client.get(WORLDS_API_PREFIX) {
-            parameter("search", search)
-            featured?.let { parameter("featured", it) }
-            parameter("sort", sort)
-            user?.let { parameter("user", it) }
-            userId?.let { parameter("userId", it) }
-            parameter("n", n)
-            parameter("order", order)
-            parameter("offset", offset)
-            releaseStatus?.let { parameter("releaseStatus", it) }
-            tag?.let { parameter("tag", it) }
-            notag?.let { parameter("notag", it) }
-        }.checkSuccess()
+    ): List<WorldData> {
+        // Served by the backend's world search command. `releaseStatus` is only forwarded when the
+        // caller set one: the core answers 403 for `releaseStatus=all` on a search, which is what
+        // this app would otherwise send for its "all" filter.
+        val params = buildJsonObject {
+            put("search", search)
+            featured?.let { put("featured", it) }
+            put("sort", sort)
+            user?.let { put("user", it) }
+            userId?.let { put("userId", it) }
+            put("n", n)
+            put("order", order)
+            put("offset", offset)
+            releaseStatus?.let { put("releaseStatus", it) }
+            tag?.let { put("tag", it) }
+            notag?.let { put("notag", it) }
+        }
+        return CoreJson.decodeFromString(
+            ListSerializer(WorldData.serializer()),
+            vrcxCoreClient().searchWorldsGet(params).bodyOrThrow(),
+        )
+    }
         
     /**
      * 获取收藏的世界列表（流式版本）
@@ -223,5 +235,7 @@ class WorldsApi(private val client: HttpClient)  {
             ownerId?.let { parameter("ownerId", it) }
         }.checkSuccess()
 }
+
+
 
 

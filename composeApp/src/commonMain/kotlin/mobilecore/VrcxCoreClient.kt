@@ -457,6 +457,25 @@ suspend fun VrcxCoreClient.avatarListByUserGet(
 ).toVrchatResult()
 
 /**
+ * World search (`app__vrchat_search_worlds_get`).
+ *
+ * `params` is the backend's own search parameter object. Note what the core measured: sending
+ * `releaseStatus: "all"` on a search is answered with 403, so callers must leave it unset.
+ */
+suspend fun VrcxCoreClient.searchWorldsGet(
+    params: JsonObject,
+    option: String? = null,
+): VrchatResult = invoke(
+    "app__vrchat_search_worlds_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("params", params)
+            if (option != null) put("option", option)
+        })
+    }
+).toVrchatResult()
+
+/**
  * Notification list from the core's own database (cloud's `app__notification_list_query`).
  *
  * `filters` are the notification type names ("friendRequest", …); an empty list means all types.
