@@ -1,5 +1,9 @@
 package io.github.vrcmteam.vrcm.service
 
+import kotlinx.serialization.json.contentOrNull
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
+import io.github.vrcmteam.vrcm.mobilecore.fileAnalysisGet
+import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
 import io.github.vrcmteam.vrcm.network.api.files.FileApi
 import io.github.vrcmteam.vrcm.network.api.files.data.PlatformFileSize
@@ -68,11 +72,23 @@ class WorldPlatformService(
         val reference = parseFileReference(assetUrl)
             ?: throw IllegalArgumentException("Invalid resource URL: $assetUrl")
 
-        val fileInfo = authService.reTryAuth { fileApi.getFileInfo(reference.fileId) }.getOrThrow()
-        val packageVersion = fileInfo.versions.firstOrNull { it.version == reference.version }
-            ?: error("Version ${reference.version} of file ${reference.fileId} was not found")
-        val sizeInBytes = packageVersion.file?.sizeInBytes
-            ?: error("Version ${reference.version} of file ${reference.fileId} has no file data")
+        // The size comes from the backend's file analysis, which is what VRCX reads too. The
+        // variant matters: the asset URL names it (`/variant/security`), and analysing the same
+        // file with a platform variant name answers 404.
+        val analysis = authService.reTryAuthCatching {
+            vrcxCoreClient().fileAnalysisGet(
+                fileId = reference.fileId,
+                version = reference.version,
+                variant = reference.variant,
+            )
+        }.getOrThrow()
+        val analysisJson = CoreJson.decodeFromString(
+            kotlinx.serialization.json.JsonObject.serializer(),
+            analysis.bodyOrThrow(),
+        )
+        val sizeInBytes = (analysisJson["fileSize"] as? kotlinx.serialization.json.JsonPrimitive)
+            ?.contentOrNull?.toLongOrNull()
+            ?: error("File analysis for ${reference.fileId} carried no fileSize")
 
         Result.success(
             PlatformFileSize(
@@ -96,7 +112,15 @@ class WorldPlatformService(
             (resource, fileId, versionText) ->
             val version = versionText.toIntOrNull()?.takeIf { it > 0 }
             if (resource == "file" && fileIdRegex.matches(fileId) && version != null) {
-                FileReference(fileId, version)
+                // The variant follows in the path as `variant/<name>`; `security` is what the
+                // asset URLs in practice carry, and analysing a file with a platform name instead
+                // answers 404.
+                val variantIndex = segments.indexOf(versionText)
+                val variant = segments.getOrNull(variantIndex + 1)
+                    ?.takeIf { it == "variant" }
+                    ?.let { segments.getOrNull(variantIndex + 2) }
+                    ?: "security"
+                FileReference(fileId, version, variant)
             } else {
                 null
             }
@@ -117,6 +141,7 @@ class WorldPlatformService(
 private data class FileReference(
     val fileId: String,
     val version: Int,
+    val variant: String,
 )
 
 val List<UnityPackage>.platformPackages: Map<PlatformType, List<UnityPackage>>
@@ -124,3 +149,8 @@ val List<UnityPackage>.platformPackages: Map<PlatformType, List<UnityPackage>>
         .mapValues { (_, packages) ->
             packages.sortedByDescending { it.createdAt }
         }
+
+
+
+
+

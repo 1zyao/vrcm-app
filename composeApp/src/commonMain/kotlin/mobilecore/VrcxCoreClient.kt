@@ -456,6 +456,28 @@ suspend fun VrcxCoreClient.avatarListByUserGet(
     }
 ).toVrchatResult()
 
+/**
+ * File analysis for one asset variant (`app__vrchat_auth_file_analysis_get`).
+ *
+ * Measured against a real world asset: `variant = "standalonewindows"` answers 404 while the
+ * variant named in the asset URL (here `security`) answers 200 with a numeric `fileSize` and
+ * `uncompressedSize`. Callers must therefore pass the variant the URL carries.
+ */
+suspend fun VrcxCoreClient.fileAnalysisGet(
+    fileId: String,
+    version: Int,
+    variant: String,
+): VrchatResult = invoke(
+    "app__vrchat_auth_file_analysis_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("fileId", fileId)
+            put("version", version)
+            put("variant", variant)
+        })
+    }
+).toVrchatResult()
+
 /** Favourite worlds, optionally for another owner (`app__vrchat_favorite_worlds_get`). */
 suspend fun VrcxCoreClient.favoriteWorldsGet(
     n: Int = 50,
@@ -608,6 +630,7 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
 
 
 
