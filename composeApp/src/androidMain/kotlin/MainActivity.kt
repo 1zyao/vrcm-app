@@ -18,6 +18,8 @@ import io.github.vrcmteam.vrcm.mobilecore.vrchatGet
 import io.github.vrcmteam.vrcm.mobilecore.VrcxCoreClient
 import io.github.vrcmteam.vrcm.mobilecore.feedRows
 import kotlinx.coroutines.launch
+import io.ktor.client.call.body
+import io.ktor.client.request.get
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -124,6 +126,31 @@ class MainActivity : ComponentActivity() {
                                 "limits=$limits groups=$groups"
                         )
                     }.onFailure { Log.e("VrcxCore", "baseline favorites failed", it) }
+                }
+
+                // TEMP probe: VRChat's file images (api.vrchat.cloud/api/1/image/...) come back
+                // 200 image/png to curl but fail inside Coil with a decode error, so log what the
+                // app itself receives - status, content type, encoding and the first bytes.
+                launch {
+                    kotlinx.coroutines.delay(12_000)
+                    runCatching {
+                        val url = "https://api.vrchat.cloud/api/1/image/" +
+                            "file_57586d9c-629a-45e9-a426-ee285195b007/1/256"
+                        val response = io.ktor.client.HttpClient()
+                            .get(url)
+                        val bytes = response.body<ByteArray>()
+                        val decoded = android.graphics.BitmapFactory
+                            .decodeByteArray(bytes, 0, bytes.size)
+                        Log.i(
+                            "VrcxCore",
+                            "image probe: status=${response.status} " +
+                                "contentType=${response.headers["Content-Type"]} " +
+                                "encoding=${response.headers["Content-Encoding"]} " +
+                                "bytes=${bytes.size} " +
+                                "head=${bytes.take(8).joinToString(",") { (it.toInt() and 0xFF).toString(16) }} " +
+                                "decoded=${decoded?.let { "${it.width}x${it.height}" } ?: "null"}"
+                        )
+                    }.onFailure { Log.e("VrcxCore", "image probe failed", it) }
                 }
 
                 // Event channel: proves the WS half of the contract is reachable and

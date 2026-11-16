@@ -285,7 +285,11 @@ private val imageLoaderDefinition: Definition<ImageLoader> = {
         .diskCache {
             DiskCache.Builder()
                 .maxSizePercent(0.03)
-                .directory(FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "vrcm_coil_disk_cache")
+                // Versioned on purpose: entries written while Coil was routed through the core
+                // were mangled (the passthrough carries the body as a string), and Coil kept
+                // serving them from disk so those images never recovered on their own. Bumping
+                // the name orphans any such cache instead of relying on a manual wipe.
+                .directory(FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "vrcm_coil_disk_cache_v2")
                 .build()
         }
         .crossfade(500)

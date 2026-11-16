@@ -8,8 +8,10 @@ import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.socialFavoritesBaseline
 import io.github.vrcmteam.vrcm.mobilecore.VrcxCoreException
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
+import io.github.vrcmteam.vrcm.mobilecore.FavoritesBaselineCache
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -38,20 +40,12 @@ class FavoriteApi(private val client: HttpClient) {
         offset: Int = 0,
         n: Int = 50,
     ): Flow<List<FavoriteData>> = flow {
-            // Temporarily back on VRChat's endpoint. The backend's app__favorite_list rows
-            // carry VRChat's group display name ("Favorites") rather than the group keys the
-            // panel buckets by ("worlds1"), so grouping and per-group counts came out wrong
-            // (0/100 for every group). The grouped form with key/count/capacity lives in the
-            // social baseline; this flips again once app__social_favorites_baseline_get lands.
-            fetchDataList(offset, n) { currentOffset, _ ->
-                client.get(FAVORITES_API_PREFIX) {
-                    parameters {
-                        parameter("type", favoriteType.value)
-                        parameter("offset", currentOffset.toString())
-                        parameter("n", n.toString())
-                    }
-                }.body()
-            }
+            // Entries come from the backend's favourites baseline, which records them per group
+            // key ("world:worlds1"), so the panel can bucket them by name exactly as it does for
+            // groups. app__favorite_list was tried first and is the wrong source: its rows carry
+            // VRChat's group display name ("Favorites"), so every group counted zero.
+            val snapshot = FavoritesBaselineCache.snapshot(vrcxCoreClient())
+            emit(snapshot.favoriteEntries(favoriteType))
         }
         
     /**
@@ -95,16 +89,10 @@ class FavoriteApi(private val client: HttpClient) {
         offset: Int = 0,
         ownerId: String? = null
     ): List<FavoriteGroupData> {
-        // Served by the backend. Its command takes no `type`, so the filter that this
-        // method's name promises happens here instead.
-        val result = vrcxCoreClient().favoriteGroupsGet(
-            n = n.coerceIn(1, 100),
-            offset = offset,
-            ownerId = ownerId.orEmpty(),
-        )
-        return CoreJson
-            .decodeFromString(ListSerializer(FavoriteGroupData.serializer()), result.bodyOrThrow())
-            .filter { it.type.equals(favoriteType.value, ignoreCase = true) }
+        // Groups come from the baseline, which already carries capacity and count per group -
+        // the same numbers the panel renders. The command takes no `type`, so the per-type
+        // selection happens here, as it did before.
+        return FavoritesBaselineCache.snapshot(vrcxCoreClient()).favoriteGroups(favoriteType)
     }
 
     private suspend fun  FlowCollector<List<FavoriteGroupData>>.fetchFavoriteGroupList(
@@ -165,16 +153,12 @@ class FavoriteApi(private val client: HttpClient) {
      * @return 返回用户的收藏限制数据
      */
     suspend fun getFavoriteLimits(): FavoriteLimits {
-        // The quota is part of the backend's favourites baseline - the core resolves VRChat's
-        // limits itself and stores them - so this app no longer asks VRChat for them.
-        val userId = io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
-            .currentSession.value?.account?.userId
-            ?: throw VrcxCoreException("noSession", "no authenticated session for favourite limits")
-        val baseline = vrcxCoreClient().socialFavoritesBaseline(userId)
-        val limits = baseline.jsonObject["snapshot"]?.jsonObject?.get("favoriteLimits")
+        // The quota is part of the same baseline the groups come from, so this shares the cache
+        // instead of issuing a second command.
+        val snapshot = FavoritesBaselineCache.snapshot(vrcxCoreClient())
+        val limits = snapshot["favoriteLimits"]
             ?: throw VrcxCoreException("noLimits", "the backend returned no favourite limits")
-        return Json { ignoreUnknownKeys = true }
-            .decodeFromString(FavoriteLimits.serializer(), limits.toString())
+        return CoreJson.decodeFromString(FavoriteLimits.serializer(), limits.toString())
     }
 
     suspend fun updateFavoriteGroup(
@@ -200,5 +184,92 @@ class FavoriteApi(private val client: HttpClient) {
     }
 
 }
+
+/** Baseline field holding this type's groups. */
+private fun FavoriteType.baselineGroupsField(): String = when (this) {
+    FavoriteType.Avatar -> "favoriteAvatarGroups"
+    FavoriteType.World -> "favoriteWorldGroups"
+    FavoriteType.Friend -> "favoriteFriendGroups"
+}
+
+/**
+ * Baseline field holding this type's entries, keyed by group.
+ *
+ * Worlds and friends come grouped by a `type:name` key; avatars use the local map.
+ */
+private fun FavoriteType.baselineEntriesField(): String = when (this) {
+    FavoriteType.Avatar -> "localAvatarFavorites"
+    FavoriteType.World -> "groupedFavoriteWorldIdsByGroupKey"
+    FavoriteType.Friend -> "groupedFavoriteFriendIdsByGroupKey"
+}
+
+private fun JsonObject.stringField(name: String): String? =
+    runCatching { (this[name] as? JsonPrimitive)?.contentOrNull }.getOrNull()
+
+/**
+ * Entries as this app's [FavoriteData], tagged with the group NAME.
+ *
+ * The baseline keys look like `world:worlds1`; the panel buckets on the bare name, which is also
+ * what [FavoriteGroupData.name] holds, so the two line up.
+ */
+private fun JsonObject.favoriteEntries(type: FavoriteType): List<FavoriteData> {
+    val grouped = this[type.baselineEntriesField()] as? JsonObject
+    val rows = mutableListOf<FavoriteData>()
+    grouped?.forEach { (key, value) ->
+        val groupName = key.substringAfter(':', key)
+        val ids = (value as? JsonArray)
+            ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+            .orEmpty()
+        ids.forEach { id ->
+            rows += FavoriteData(
+                favoriteId = id,
+                id = id,
+                tags = listOf(groupName),
+                type = type.value,
+            )
+        }
+    }
+    if (rows.isEmpty() && type == FavoriteType.Avatar) {
+        // Avatars also carry a flat id list; use it when there is no grouped form.
+        (this["favoriteAvatarIds"] as? JsonArray)
+            ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+            ?.forEach { id ->
+                rows += FavoriteData(favoriteId = id, id = id, tags = emptyList(), type = type.value)
+            }
+    }
+    return rows
+}
+
+/**
+ * Groups as this app's [FavoriteGroupData].
+ *
+ * The baseline's group entries have no VRChat group id, but the snapshot also caches the raw
+ * group records by id - so the id is recovered by name, which is what the group-edit commands need.
+ */
+private fun JsonObject.favoriteGroups(type: FavoriteType): List<FavoriteGroupData> {
+    val groups = this[type.baselineGroupsField()] as? JsonArray ?: return emptyList()
+    val cachedByName = mutableMapOf<String, JsonObject>()
+    (this["cachedFavoriteGroupsById"] as? JsonObject)?.forEach { (_, value) ->
+        val record = value as? JsonObject ?: return@forEach
+        record.stringField("name")?.let { cachedByName[it] = record }
+    }
+    return groups.mapNotNull { element ->
+        val group = element as? JsonObject ?: return@mapNotNull null
+        val name = group.stringField("name") ?: return@mapNotNull null
+        val cached = cachedByName[name]
+        FavoriteGroupData(
+            id = cached?.stringField("id").orEmpty(),
+            ownerId = cached?.stringField("ownerId")
+                ?: this.stringField("currentUserId").orEmpty(),
+            type = group.stringField("type") ?: type.value,
+            visibility = group.stringField("visibility") ?: "private",
+            displayName = group.stringField("displayName") ?: name,
+            name = name,
+            ownerDisplayName = cached?.stringField("ownerDisplayName").orEmpty(),
+            tags = emptyList(),
+        )
+    }
+}
+
 
 
