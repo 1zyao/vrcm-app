@@ -23,7 +23,7 @@ import kotlinx.serialization.Serializable
 
 class UsersApi(private val client: HttpClient) {
 
-    suspend fun fetchUser(userId: String) =
+    suspend fun fetchUser(userId: String): UserData =
         client.get("$USERS_API_PREFIX/$userId").checkSuccess<UserData>()
 
     suspend fun fetchUserResponse(userId: String) =
@@ -207,3 +207,10 @@ private data class PlayerModerationData(
     val targetUserId: String,
     val type: String,
 )
+
+
+
+
+
+
+

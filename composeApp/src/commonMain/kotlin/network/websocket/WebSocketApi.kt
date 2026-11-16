@@ -3,6 +3,7 @@ package io.github.vrcmteam.vrcm.network.websocket
 import io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
 import io.github.vrcmteam.vrcm.core.shared.AccountSessionToken
 import io.github.vrcmteam.vrcm.core.shared.AccountWebSocketEvent
+import io.github.vrcmteam.vrcm.mobilecore.isVrcxCoreReady
 import io.github.vrcmteam.vrcm.network.api.attributes.AUTH_API_PREFIX
 import io.github.vrcmteam.vrcm.network.api.attributes.VRC_WSS_URL
 import io.github.vrcmteam.vrcm.network.api.auth.data.AuthData
@@ -71,6 +72,14 @@ class WebSocketApi(
     private fun replaceConnection(sessionToken: AccountSessionToken?) = synchronized(connectionLock) {
         currentJob?.cancel()
         connectedSessionToken.value = null
+        // With the VRCX-0 core present, realtime comes from the core's event stream
+        // (`CoreEvents`, GET /api/events). This client would also fail anyway: the
+        // shared Ktor client is now backed by CoreHttpEngine, which declares no
+        // WebSocketCapability. Keeping it would only produce errors on every
+        // reconnect attempt.
+        if (isVrcxCoreReady()) {
+            return@synchronized
+        }
         currentJob = sessionToken?.let { token ->
             scope.launch { startWebSocket(token) }
         }
@@ -215,3 +224,4 @@ internal suspend fun retryWebSocketConnection(
         delay(delayMillis.coerceAtMost(maxRetryDelayMillis))
     }
 }
+

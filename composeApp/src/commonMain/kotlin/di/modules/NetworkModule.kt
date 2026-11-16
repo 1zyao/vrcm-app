@@ -1,5 +1,6 @@
 package io.github.vrcmteam.vrcm.di.modules
 
+import io.github.vrcmteam.vrcm.mobilecore.createApiEngine
 import io.github.vrcmteam.vrcm.network.api.appstore.AppStoreApi
 import io.github.vrcmteam.vrcm.network.api.avatars.AvatarModerationApi
 import io.github.vrcmteam.vrcm.network.api.avatars.AvatarsApi
@@ -76,7 +77,11 @@ internal fun createNetworkJson() = Json {
 }
 
 private val apiClientDefinition: Definition<HttpClient> = {
-    HttpClient {
+    // The engine is picked per platform: on the phone the core owns the VRChat
+    // client, everywhere else there is no core and the platform default must be
+    // used. Building the core engine unconditionally would leave desktop answering
+    // 503 to every request.
+    val configure: io.ktor.client.HttpClientConfig<*>.() -> Unit = {
         configureApiClient(
             apiNoticeCenter = get(),
             webSocketJson = get(),
@@ -94,4 +99,11 @@ private val apiClientDefinition: Definition<HttpClient> = {
 //            }
 //        }
     }
+    when (val engine = createApiEngine()) {
+        null -> HttpClient { configure() }
+        else -> HttpClient(engine) { configure() }
+    }
 }
+
+
+
