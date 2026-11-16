@@ -180,17 +180,11 @@ internal fun ActivityEventRow(
         AppSurface(
             modifier = Modifier.padding(top = 7.dp).size(8.dp),
             shape = CircleShape,
-            // The dot reflects the event, not a fixed accent: a status change shows that
-            // status's colour (online green / join me blue / ask me yellow / busy red), and
-            // anything else gets a neutral mark. It used to be the tint colour for every row,
-            // which read as "welcomed" on all of them.
-            color = when (event.type) {
-                FriendActivityEventType.StatusChanged ->
-                    GameColor.Status.fromValue(event.currentValue?.toUserStatus())
-                FriendActivityEventType.Offline -> GameColor.Status.Offline
-                FriendActivityEventType.Online -> GameColor.Status.Online
-                else -> AppTheme.colors.tertiaryLabel
-            },
+            // The dot shows the friend's real status colour: the new status for a status change,
+            // their current status for every other kind of row (joined from the roster).
+            color = GameColor.Status.fromValue(
+                (event.friendStatus ?: event.currentValue)?.toUserStatus()
+            ),
             content = {},
         )
         Column(
@@ -204,6 +198,12 @@ internal fun ActivityEventRow(
             )
             if (event.type == FriendActivityEventType.AvatarChanged) {
                 AvatarChangePreview(event.previousValue, event.currentValue)
+            } else if (event.type == FriendActivityEventType.StatusChanged &&
+                event.previousValue != null && event.currentValue != null
+            ) {
+                // VRCX shows a status change as "old → new" with a dot per status; the original
+                // VRCM design printed only the new status.
+                StatusChangeDetail(event.previousValue, event.currentValue)
             } else if (bioDiff.isNotEmpty()) {
                 BioDiffLines(bioDiff)
             } else if (detail != null) {
@@ -241,6 +241,39 @@ private fun AvatarChangePreview(previousUrl: String?, currentUrl: String?) {
     }
 }
 
+/** "old status → new status", each with its own status dot, the way VRCX renders it. */
+@Composable
+private fun StatusChangeDetail(previous: String?, current: String?) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        previous?.let {
+            StatusChainItem(it)
+            AppText(
+                text = "→",
+                style = AppTheme.type.caption1,
+                color = AppTheme.colors.secondaryLabel,
+            )
+        }
+        current?.let { StatusChainItem(it) }
+    }
+}
+
+@Composable
+private fun StatusChainItem(raw: String) {
+    AppSurface(
+        modifier = Modifier.size(8.dp),
+        shape = CircleShape,
+        color = GameColor.Status.fromValue(raw.toUserStatus()),
+        content = {},
+    )
+    AppText(
+        text = raw.activityStatus() ?: raw,
+        style = AppTheme.type.caption1,
+        color = AppTheme.colors.secondaryLabel,
+    )
+}
 @Composable
 private fun AvatarChangeImage(imageUrl: String?, label: String, modifier: Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {

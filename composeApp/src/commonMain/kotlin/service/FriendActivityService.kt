@@ -66,6 +66,13 @@ data class FriendActivityEvent(
     val worldId: String?,
     val worldName: String?,
     val accessType: FriendActivityAccessType?,
+    /**
+     * The friend's status when this list was built, joined from the roster.
+     *
+     * A feed row records only what changed, so a "changed world" row carries no status of its
+     * own - the dot beside it shows the friend's current status, which is what VRCX does.
+     */
+    val friendStatus: String? = null,
 )
 
 internal data class FriendActivitySourceSnapshot(

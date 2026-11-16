@@ -73,7 +73,12 @@ internal class BackendFriendActivityTimelineSource(
         val rows = runCatching {
             client.feedQuery(
                 userId = token.userId,
-                mode = "lookup",                maxEntries = limit,
+                mode = "lookup",
+                maxEntries = limit,
+                // Ask the backend for the requested kinds. The page is a fixed number of rows,
+                // so filtering after the fact meant "模型" showed only the one or two avatar
+                // changes that happened to sit inside an unfiltered page.
+                filters = types.toFeedFilters(),
                 // The backend pages by (created_at, source_rank, row_id); only the first
                 // two are known here, so the row id doubles as the rank tiebreaker.
                 cursor = cursor?.let {
@@ -94,9 +99,16 @@ internal class BackendFriendActivityTimelineSource(
         // Feed rows do not carry the friend's profile icon, so it is joined in from the roster
         // baseline - the same wrapped data the friend list uses. Without this the timeline shows
         // a grey circle for every row.
+        // Row icons and each friend's current status both come from the roster baseline - the
+        // feed row itself records only what changed.
+        var statusByUser: Map<String, String> = emptyMap()
         val iconsByUser = runCatching {
             val snapshot = FriendRosterCache.snapshot(client)
             val byId = snapshot["friendsById"] as? JsonObject ?: return@runCatching emptyMap()
+            statusByUser = byId.mapNotNull { (userId, value) ->
+                val status = (value as? JsonObject)?.str("status")
+                if (status.isNullOrBlank()) null else userId to status
+            }.toMap()
             byId.mapNotNull { (userId, value) ->
                 val icon = (value as? JsonObject)?.str("iconUrl")
                     ?: (value as? JsonObject)?.str("currentAvatarImageUrl")
@@ -106,7 +118,7 @@ internal class BackendFriendActivityTimelineSource(
 
         return array.mapNotNull { element ->
             val row = runCatching { element.jsonObject }.getOrNull() ?: return@mapNotNull null
-            row.toEvent(types, iconsByUser)
+            row.toEvent(types, iconsByUser, statusByUser)
         }
     }
 }
@@ -116,6 +128,7 @@ internal class BackendFriendActivityTimelineSource(
 private fun JsonObject.toEvent(
     types: Set<FriendActivityEventType>,
     iconsByUser: Map<String, String> = emptyMap(),
+    statusByUser: Map<String, String> = emptyMap(),
 ): FriendActivityEvent? {
     val type = when (str("type")?.lowercase()) {
         "online" -> FriendActivityEventType.Online
@@ -168,6 +181,13 @@ private fun JsonObject.toEvent(
         // location is withheld, so they stay null and the UI shows the private-room label instead
         // of "unknown".
         accessType = location?.takeIf { it.startsWith("wrld_") }?.toAccessType(),
+        // For a status change the new status is the event's own value; every other row shows
+        // where the friend stands right now.
+        friendStatus = if (type == FriendActivityEventType.StatusChanged) {
+            str("status")
+        } else {
+            statusByUser[userId]
+        },
     )
 }
 
@@ -194,6 +214,16 @@ private fun String.toAccessType(): FriendActivityAccessType {
 
 private fun JsonObject.str(key: String): String? =
     runCatching { this[key]?.jsonPrimitive?.contentOrNull }.getOrNull()
+
+/** This app's event types as the backend's own `filters` values. */
+private fun Set<FriendActivityEventType>.toFeedFilters(): List<String> = buildList {
+    if (FriendActivityEventType.Online in this@toFeedFilters) add("Online")
+    if (FriendActivityEventType.Offline in this@toFeedFilters) add("Offline")
+    if (FriendActivityEventType.LocationChanged in this@toFeedFilters) add("GPS")
+    if (FriendActivityEventType.StatusChanged in this@toFeedFilters) add("Status")
+    if (FriendActivityEventType.BioChanged in this@toFeedFilters) add("Bio")
+    if (FriendActivityEventType.AvatarChanged in this@toFeedFilters) add("Avatar")
+}
 
 
 

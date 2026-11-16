@@ -11,6 +11,7 @@ import io.github.vrcmteam.vrcm.network.api.attributes.AuthState
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -222,7 +223,8 @@ suspend fun VrcxCoreClient.feedQuery(
     mode: String = "lookup",
     maxEntries: Int = 60,
     search: String = "",
-    cursor: JsonObject? = null
+    cursor: JsonObject? = null,
+    filters: List<String> = emptyList(),
 ): JsonElement = invoke(
     "app__feed_rows_query",
     // Canonical envelope: the input is wrapped in a key named after the command's
@@ -235,6 +237,11 @@ suspend fun VrcxCoreClient.feedQuery(
             put("maxEntries", maxEntries)
             if (search.isNotEmpty()) put("search", search)
             if (cursor != null) put("cursor", cursor)
+            // Filters belong to the query: filtering an unfiltered page client-side only ever
+            // shows the few rows of that type that happen to fall inside the page.
+            if (filters.isNotEmpty()) {
+                put("filters", JsonArray(filters.map { JsonPrimitive(it) }))
+            }
         })
     }
 )
@@ -392,3 +399,4 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
