@@ -22,3 +22,7 @@ captures
 **/xcshareddata/WorkspaceSettings.xcsettings
 .vscode
 .hotswan/
+
+# VRCX-0 core: built by scripts/build-core.ps1, never committed
+composeApp/src/androidMain/jniLibs/
+
