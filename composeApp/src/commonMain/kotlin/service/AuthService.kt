@@ -4,11 +4,18 @@ import io.github.vrcmteam.vrcm.core.shared.AccountSessionToken
 import io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
 import io.github.vrcmteam.vrcm.di.supports.PersistentCookiesStorage
 import io.github.vrcmteam.vrcm.network.api.attributes.AUTH_COOKIE
+import io.github.vrcmteam.vrcm.mobilecore.isVrcxCoreReady
+import io.github.vrcmteam.vrcm.mobilecore.autoLoginStart
+import io.github.vrcmteam.vrcm.mobilecore.loginBasic
+import io.github.vrcmteam.vrcm.mobilecore.loginRespond
+import io.github.vrcmteam.vrcm.mobilecore.logout
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import io.github.vrcmteam.vrcm.network.api.attributes.AuthState
 import io.github.vrcmteam.vrcm.network.api.attributes.AuthType
 import io.github.vrcmteam.vrcm.network.api.attributes.TWO_FACTOR_AUTH_COOKIE
 import io.github.vrcmteam.vrcm.network.api.auth.AuthApi
 import io.github.vrcmteam.vrcm.network.api.auth.data.CurrentUserData
+import kotlinx.serialization.json.Json
 import io.github.vrcmteam.vrcm.network.api.auth.data.Presence
 import io.github.vrcmteam.vrcm.network.api.profile.ProfileAppearanceApi
 import io.github.vrcmteam.vrcm.network.api.profile.data.ProfileAppearanceData
@@ -142,6 +149,27 @@ class AuthService(
     }
 
     private suspend fun restoreAuthLocked(): AuthState? {
+        // The core owns the saved credentials and the cookie jar, so restoring is
+        // one command instead of "read AccountDto, re-apply cookies, ask VRChat".
+        if (isVrcxCoreReady()) {
+            pendingCoreUserJson = null
+            pendingCoreAttemptId = null
+            val core = runCatching { vrcxCoreClient().autoLoginStart() }.getOrNull()
+            if (core != null) {
+                if (core.state !is AuthState.Authed) return null
+                pendingCoreUserJson = core.userJson
+                pendingCoreAttemptId = core.attemptId
+                return try {
+                    emitAuthed(null).getOrThrow()
+                    AuthState.Authed
+                } catch (error: Throwable) {
+                    null
+                } finally {
+                    pendingCoreUserJson = null
+                }
+            }
+        }
+
         val account = accountDao.currentAccountDtoOrNull() ?: return null
         // No auth cookie means the user explicitly logged out (or has never logged in).
         // In that state we must not silently recreate a session from the saved password.
@@ -471,6 +499,32 @@ class AuthService(
             AuthCardPage.TTFACode -> AuthType.TTFA
             else -> error("not supported")
         }
+        // Same split as login: the core owns the 2FA exchange when it is up, so no
+        // verification code ever travels through this app's own VRChat client.
+        if (isVrcxCoreReady() && pendingCoreAttemptId != null) {
+            val method = when (authCardPage) {
+                AuthCardPage.EmailCode -> "emailOtp"
+                AuthCardPage.TFACode -> "totp"
+                AuthCardPage.TTFACode -> "otp"
+                else -> error("not supported")
+            }
+            val core = vrcxCoreClient().loginRespond(pendingCoreAttemptId!!, method, verifyCode)
+            pendingCoreUserJson = core.userJson
+            return try {
+                if (core.state is AuthState.Authed) {
+                    emitAuthed(password)
+                } else {
+                    Result.failure(
+                        IllegalStateException(
+                            (core.state as? AuthState.Unauthorized)?.message
+                                ?: "verification failed"
+                        )
+                    )
+                }
+            } finally {
+                pendingCoreUserJson = null
+            }
+        }
         return authApi.verify(verifyCode, authType)
             .let { if (it.isSuccess) emitAuthed(password) else it }
     }
@@ -480,8 +534,18 @@ class AuthService(
         response: HttpResponse? = null,
         expectedUserId: String? = null,
     ): Result<Unit> = runCatching {
-        (response ?: authApi.userRes()).let {
-            val userData = enrichCurrentUser(it.checkSuccess<CurrentUserData>())
+        // When the core handed over the user JSON for this login, use it instead
+        // of asking VRChat for the current user again.
+        val coreUser = pendingCoreUserJson?.let { json ->
+            runCatching {
+                Json { ignoreUnknownKeys = true }.decodeFromString<CurrentUserData>(json)
+            }.getOrNull()
+        }
+        (coreUser
+            ?: enrichCurrentUser(
+                (response ?: authApi.userRes()).checkSuccess<CurrentUserData>()
+            )).let {
+            val userData = it
             require(expectedUserId == null || userData.id == expectedUserId) {
                 "Authenticated account does not match the selected account"
             }
@@ -508,6 +572,15 @@ class AuthService(
         }
     }
 
+    /**
+     * User JSON handed over by the core for the login in flight. When set,
+     * emitAuthed uses it instead of asking VRChat for the current user again.
+     */
+    private var pendingCoreUserJson: String? = null
+
+    /** Attempt id of the challenge in flight, handed back to the core on verify. */
+    private var pendingCoreAttemptId: String? = null
+
     suspend fun login(username: String, password: String): AuthState = authMutex.withLock {
         loginLocked(username, password)
     }
@@ -524,12 +597,31 @@ class AuthService(
         val isAccountSwitch = activeUserId != null && activeUserId != targetUserId
         if (restoreStoredCookies) applyAuthCookie(username)
         return try {
-            authApi.login(username, password).also {
-                if (it is AuthState.Authed) {
-                    emitAuthed(password, expectedUserId = expectedUserId).getOrThrow()
-                } else if (invalidateOnIncompleteAuth) {
-                    invalidateCurrentSessionLocked()
+            // Login goes through the in-process VRCX-0 core whenever it is up:
+            // the core owns the HTTP call, the cookie jar and the 2FA state
+            // machine, so this app no longer talks to VRChat itself. The old
+            // path stays compiled as a fallback for builds where the core did
+            // not start.
+            val state = if (isVrcxCoreReady()) {
+                val core = vrcxCoreClient().loginBasic(username, password)
+                // The core's session already carries the full user JSON, so
+                // emitAuthed must not fetch it again from VRChat.
+                pendingCoreUserJson = core.userJson
+                pendingCoreAttemptId = core.attemptId
+                core.state
+            } else {
+                authApi.login(username, password)
+            }
+            try {
+                state.also {
+                    if (it is AuthState.Authed) {
+                        emitAuthed(password, expectedUserId = expectedUserId).getOrThrow()
+                    } else if (invalidateOnIncompleteAuth) {
+                        invalidateCurrentSessionLocked()
+                    }
                 }
+            } finally {
+                pendingCoreUserJson = null
             }
         } catch (error: Throwable) {
             if (isAccountSwitch) invalidateCurrentSessionLocked()
@@ -725,6 +817,13 @@ class AuthService(
             synchronized(currentUserLock) { clearCurrentUserLocked() }
         }
         currentAccountDto = accountDao.currentAccountDtoOrNull()
+        // The core keeps its own authenticated runtime; without telling it, it
+        // would still consider itself logged in after a logout.
+        if (isVrcxCoreReady()) {
+            // Deliberately swallowed: local logout must succeed even when the core is in
+            // a bad state, and commonMain has no platform logger.
+            runCatching { vrcxCoreClient().logout() }
+        }
         SharedFlowCentre.emitLogout()
     }
 
@@ -800,3 +899,10 @@ internal fun socketLocationToPresenceParts(location: String): Pair<String, Strin
 
 internal fun selectCurrentPresence(restPresence: Presence, socketPresence: Presence?): Presence =
     socketPresence ?: restPresence
+
+
+
+
+
+
+
