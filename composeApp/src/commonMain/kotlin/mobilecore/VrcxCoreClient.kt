@@ -370,3 +370,25 @@ suspend fun VrcxCoreClient.socialFavoritesBaseline(
         })
     }
 )
+
+/**
+ * The friend roster baseline: every friend the backend knows, with presence.
+ *
+ * One snapshot serves both the online and the offline list this app asks for separately.
+ */
+suspend fun VrcxCoreClient.socialFriendRosterBaseline(
+    userId: String,
+    endpoint: String = "https://api.vrchat.cloud/api/1",
+    websocket: String = "wss://pipeline.vrchat.cloud",
+    isFirstLoad: Boolean = true,
+): JsonElement = invoke(
+    "app__social_friend_roster_baseline_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("userId", userId)
+            put("endpoint", endpoint)
+            put("websocket", websocket)
+            put("isFirstLoad", isFirstLoad)
+        })
+    }
+)
