@@ -475,6 +475,18 @@ suspend fun VrcxCoreClient.searchWorldsGet(
     }
 ).toVrchatResult()
 
+/** The groups a user belongs to (`app__vrchat_group_user_groups_get`). */
+suspend fun VrcxCoreClient.groupUserGroupsGet(userId: String): VrchatResult = invoke(
+    "app__vrchat_group_user_groups_get",
+    buildJsonObject { put("input", buildJsonObject { put("userId", userId) }) }
+).toVrchatResult()
+
+/** A user's represented group (`app__vrchat_user_represented_group_get`). */
+suspend fun VrcxCoreClient.userRepresentedGroupGet(userId: String): VrchatResult = invoke(
+    "app__vrchat_user_represented_group_get",
+    buildJsonObject { put("input", buildJsonObject { put("userId", userId) }) }
+).toVrchatResult()
+
 /**
  * Blocked/muted users from the core's own database (`app__local_moderation_list`).
  *
@@ -550,4 +562,5 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
 

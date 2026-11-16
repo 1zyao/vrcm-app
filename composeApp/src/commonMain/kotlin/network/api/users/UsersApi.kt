@@ -1,6 +1,8 @@
 package io.github.vrcmteam.vrcm.network.api.users
 
 import io.github.vrcmteam.vrcm.mobilecore.userGet
+import io.github.vrcmteam.vrcm.mobilecore.groupUserGroupsGet
+import io.github.vrcmteam.vrcm.mobilecore.userRepresentedGroupGet
 import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.searchUsersGet
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
@@ -85,14 +87,19 @@ class UsersApi(private val client: HttpClient) {
     }.checkSuccess<CurrentUpdateUserData>()
 
     suspend fun getUserGroups(userId: String): List<LimitedUserGroup> =
-        client.get("$USERS_API_PREFIX/$userId/groups").checkSuccess()
+        CoreJson.decodeFromString(
+            ListSerializer(LimitedUserGroup.serializer()),
+            vrcxCoreClient().groupUserGroupsGet(userId).bodyOrThrow(),
+        )
 
     suspend fun getRepresentedGroup(userId: String): LimitedUserGroup? {
-        val response = client.get("$USERS_API_PREFIX/$userId/groups/represented")
-        return when (response.status) {
-            HttpStatusCode.NotFound, HttpStatusCode.NoContent -> null
-            else -> response.checkSuccess<LimitedUserGroup?>()
-        }
+        // A user with no represented group is not an error: the backend answers 404/204 there, and
+        // this returns null for both, as the direct call used to.
+        val result = runCatching { vrcxCoreClient().userRepresentedGroupGet(userId) }
+            .getOrNull() ?: return null
+        return runCatching {
+            CoreJson.decodeFromString(LimitedUserGroup.serializer(), result.bodyOrThrow())
+        }.getOrNull()
     }
 
     suspend fun getMutualFriends(
@@ -234,6 +241,7 @@ private data class PlayerModerationData(
     val targetUserId: String,
     val type: String,
 )
+
 
 
 
