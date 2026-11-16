@@ -4,6 +4,9 @@ import io.github.vrcmteam.vrcm.core.extensions.fetchDataList
 import io.github.vrcmteam.vrcm.mobilecore.favoriteDelete
 import io.github.vrcmteam.vrcm.mobilecore.favoriteGroupsGet
 import io.github.vrcmteam.vrcm.mobilecore.favoriteList
+import io.github.vrcmteam.vrcm.mobilecore.CoreJson
+import io.github.vrcmteam.vrcm.mobilecore.socialFavoritesBaseline
+import io.github.vrcmteam.vrcm.mobilecore.VrcxCoreException
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
@@ -99,7 +102,7 @@ class FavoriteApi(private val client: HttpClient) {
             offset = offset,
             ownerId = ownerId.orEmpty(),
         )
-        return Json
+        return CoreJson
             .decodeFromString(ListSerializer(FavoriteGroupData.serializer()), result.bodyOrThrow())
             .filter { it.type.equals(favoriteType.value, ignoreCase = true) }
     }
@@ -162,7 +165,16 @@ class FavoriteApi(private val client: HttpClient) {
      * @return 返回用户的收藏限制数据
      */
     suspend fun getFavoriteLimits(): FavoriteLimits {
-        return client.get("$AUTH_API_PREFIX/$USER_API_PREFIX/$FAVORITE_LIMITS_API_SUFFIX").checkSuccess()
+        // The quota is part of the backend's favourites baseline - the core resolves VRChat's
+        // limits itself and stores them - so this app no longer asks VRChat for them.
+        val userId = io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
+            .currentSession.value?.account?.userId
+            ?: throw VrcxCoreException("noSession", "no authenticated session for favourite limits")
+        val baseline = vrcxCoreClient().socialFavoritesBaseline(userId)
+        val limits = baseline.jsonObject["snapshot"]?.jsonObject?.get("favoriteLimits")
+            ?: throw VrcxCoreException("noLimits", "the backend returned no favourite limits")
+        return Json { ignoreUnknownKeys = true }
+            .decodeFromString(FavoriteLimits.serializer(), limits.toString())
     }
 
     suspend fun updateFavoriteGroup(
@@ -188,3 +200,5 @@ class FavoriteApi(private val client: HttpClient) {
     }
 
 }
+
+

@@ -2,7 +2,7 @@ package io.github.vrcmteam.vrcm.network.api.auth
 
 import io.github.vrcmteam.vrcm.mobilecore.currentUserGet
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
-import kotlinx.serialization.json.Json
+import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.network.api.attributes.AUTH_API_PREFIX
 import io.github.vrcmteam.vrcm.network.api.attributes.AuthState
 import io.github.vrcmteam.vrcm.network.api.attributes.AuthType
@@ -47,7 +47,8 @@ class AuthApi(
      */
     suspend fun currentUser(): CurrentUserData {
         val result = vrcxCoreClient().currentUserGet()
-        return Json.decodeFromString(CurrentUserData.serializer(), result.bodyOrThrow())
+        // Lenient: the backend's user payload carries fields no DTO declares (accountStanding).
+        return CoreJson.decodeFromString(CurrentUserData.serializer(), result.bodyOrThrow())
     }
 
 
@@ -121,6 +122,7 @@ private data class ApproveDeviceRequest(val userCode: String)
 
 @Serializable
 private data class ApproveDeviceResponse(val success: Boolean)
+
 
 
 

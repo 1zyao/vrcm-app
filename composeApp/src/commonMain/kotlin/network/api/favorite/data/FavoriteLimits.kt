@@ -3,52 +3,30 @@ package io.github.vrcmteam.vrcm.network.api.favorite.data
 import kotlinx.serialization.Serializable
 
 /**
- * 收藏组类型限制数据
- * 
- * 用于表示每种类型的收藏组最大数量限制
+ * Per-type favourite limits.
+ *
+ * Fields carry defaults because the payload is the backend's stored copy of VRChat's limits,
+ * which may omit a type this app does not model (VRC+ adds `vrcPlusWorld`); a missing key is
+ * otherwise a hard decode error even when the type is nullable.
  */
 @Serializable
 data class FavoriteGroupLimits(
-    /**
-     * 头像收藏组最大数量
-     */
-    val avatar: Int,
-    
-    /**
-     * 好友收藏组最大数量
-     */
-    val friend: Int,
-    
-    /**
-     * 世界收藏组最大数量
-     */
-    val world: Int
+    val avatar: Int = 0,
+    val friend: Int = 0,
+    val world: Int = 0
 )
 
 /**
- * 收藏限制数据
- * 
- * 用于表示用户的收藏限制信息
+ * Favourite quota as recorded by the backend.
+ *
+ * `defaultMaxFavoriteGroups` / `defaultMaxFavoritesPerGroup` are this app's own concept and are
+ * not part of the stored limits, so they default to zero; callers should prefer the per-type
+ * values.
  */
 @Serializable
 data class FavoriteLimits(
-    /**
-     * 每种类型的最大收藏组数量
-     */
-    val maxFavoriteGroups: FavoriteGroupLimits,
-    
-    /**
-     * 每种类型每组的最大收藏数量
-     */
-    val maxFavoritesPerGroup: FavoriteGroupLimits,
-    
-    /**
-     * 默认最大收藏组数量
-     */
-    val defaultMaxFavoriteGroups: Int,
-    
-    /**
-     * 默认每组最大收藏数量
-     */
-    val defaultMaxFavoritesPerGroup: Int
-) 
+    val maxFavoriteGroups: FavoriteGroupLimits = FavoriteGroupLimits(),
+    val maxFavoritesPerGroup: FavoriteGroupLimits = FavoriteGroupLimits(),
+    val defaultMaxFavoriteGroups: Int = 0,
+    val defaultMaxFavoritesPerGroup: Int = 0
+)

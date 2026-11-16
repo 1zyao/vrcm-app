@@ -350,3 +350,23 @@ suspend fun VrcxCoreClient.searchGroupsGet(params: JsonObject): VrchatResult = i
     "app__vrchat_search_groups_get",
     buildJsonObject { put("input", buildJsonObject { put("params", params) }) }
 ).toVrchatResult()
+
+/**
+ * The favourites baseline: groups with capacity/count, plus the stored favourite limits.
+ *
+ * This is the source of the quota the favourites panel shows. The response is `stale` when the
+ * backend has no active auth scope, so a caller must treat `stale: true` as "no data" rather
+ * than as zero favourites.
+ */
+suspend fun VrcxCoreClient.socialFavoritesBaseline(
+    userId: String,
+    endpoint: String = "https://api.vrchat.cloud/api/1",
+): JsonElement = invoke(
+    "app__social_favorites_baseline_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("userId", userId)
+            put("endpoint", endpoint)
+        })
+    }
+)

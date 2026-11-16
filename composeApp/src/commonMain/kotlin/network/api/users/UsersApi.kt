@@ -1,5 +1,6 @@
 package io.github.vrcmteam.vrcm.network.api.users
 
+import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.searchUsersGet
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import kotlinx.serialization.builtins.ListSerializer
@@ -50,7 +51,7 @@ class UsersApi(private val client: HttpClient) {
             put("offset", offset)
         }
         val result = vrcxCoreClient().searchUsersGet(params)
-        return Json.decodeFromString(
+        return CoreJson.decodeFromString(
             ListSerializer(SearchUserData.serializer()),
             result.bodyOrThrow()
         )
@@ -221,6 +222,7 @@ private data class PlayerModerationData(
     val targetUserId: String,
     val type: String,
 )
+
 
 
 
