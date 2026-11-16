@@ -5,10 +5,22 @@ import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
+import io.github.vrcmteam.vrcm.mobilecore.CoreEvents
+import io.github.vrcmteam.vrcm.mobilecore.debugEmitEvent
+import io.github.vrcmteam.vrcm.mobilecore.startVrcxCore
+import io.github.vrcmteam.vrcm.mobilecore.vrchatGet
+import io.github.vrcmteam.vrcm.mobilecore.VrcxCoreClient
+import io.github.vrcmteam.vrcm.mobilecore.feedRows
+import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import io.github.vrcmteam.vrcm.service.OfficialLinkInbox
 import io.github.vrcmteam.vrcm.service.NotificationLaunchDestination
 import io.github.vrcmteam.vrcm.service.NotificationLaunchInbox
@@ -37,6 +49,47 @@ class MainActivity : ComponentActivity() {
                 notificationLaunchInbox.submit(destination, targetId)
             }
         }
+        // VRCX-0 core: starts the in-process Rust runtime and its loopback
+        // command bus. Everything below talks HTTP to it; nothing else in the app
+        // talks to VRChat directly.
+        val core = startVrcxCore(filesDir.absolutePath)
+        if (core != null) {
+            lifecycleScope.launch {
+                runCatching { core.feedRows("usr_probe", 10) }
+                    .onSuccess { rows ->
+                        Log.i("VrcxCore", "feedRows ok: ${rows.toString().take(300)}")
+                    }
+                    .onFailure { Log.e("VrcxCore", "feedRows failed", it) }
+
+                // Event channel: proves the WS half of the contract is reachable and
+                // keeps logging whatever the core pushes.
+                launch {
+                    runCatching {
+                        Log.i("VrcxCore", "event stream connecting to ${core.baseUrl}")
+                        var emitted = false
+                        CoreEvents(core.baseUrl).stream().collect { event ->
+                            Log.i("VrcxCore", "event ${event.name}: ${event.payload.toString().take(160)}")
+                            if (event.name == "connected" && !emitted) {
+                                emitted = true
+                                runCatching {
+                                    core.debugEmitEvent("probeEvent", Json.parseToJsonElement("""{"ok":true}"""))
+                                }.onFailure { Log.e("VrcxCore", "debug emit failed", it) }
+                            }
+                        }
+                    }.onFailure { Log.e("VrcxCore", "event stream failed", it) }
+                }
+
+                // Transport probe: `config` is a public VRChat endpoint, so a 200
+                // here proves the Kotlin -> core -> VRChat path without needing a
+                // logged-in account.
+                runCatching { core.vrchatGet("config") }
+                    .onSuccess { config ->
+                        Log.i("VrcxCore", "probe vrchatGet(config) ok: ${config.toString().take(160)}")
+                    }
+                    .onFailure { Log.e("VrcxCore", "probe vrchatGet(config) failed", it) }
+            }
+        }
+
         setContent {
             App(
                 officialLinkInbox = officialLinkInbox,
@@ -103,3 +156,12 @@ class MainActivity : ComponentActivity() {
         const val PENDING_NOTIFICATION_TARGET_ID_KEY = "pending-notification-target-id"
     }
 }
+
+
+
+
+
+
+
+
+

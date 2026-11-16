@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    The VRCX-0 core runs inside this process and serves the command bus on
+    127.0.0.1 over plain HTTP. Loopback traffic never leaves the device, so it
+    is the one place where cleartext is both necessary and safe; everything else
+    keeps the default (HTTPS only).
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>
