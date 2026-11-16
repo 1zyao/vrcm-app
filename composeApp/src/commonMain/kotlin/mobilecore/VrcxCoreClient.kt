@@ -406,6 +406,27 @@ suspend fun VrcxCoreClient.instanceGet(
 ).toVrchatResult()
 
 /**
+ * A world by id, through the core's world cache (`app__world_get`).
+ *
+ * `full = false` is the cache-first summary the core keeps locally; `full = true` asks for the
+ * complete live record (capacity, occupants, instances), which is what the world page shows.
+ */
+suspend fun VrcxCoreClient.worldGet(
+    worldId: String,
+    force: Boolean = false,
+    full: Boolean = true,
+): VrchatResult = invoke(
+    "app__world_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("worldId", worldId)
+            put("force", force)
+            put("full", full)
+        })
+    }
+).toVrchatResult()
+
+/**
  * Notification list from the core's own database (cloud's `app__notification_list_query`).
  *
  * `filters` are the notification type names ("friendRequest", …); an empty list means all types.

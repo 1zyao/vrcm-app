@@ -7,6 +7,10 @@ import io.github.vrcmteam.vrcm.network.api.worlds.data.FavoritedWorld
 import io.github.vrcmteam.vrcm.network.api.worlds.data.WorldData
 import io.github.vrcmteam.vrcm.network.api.worlds.data.WorldPublishStatus
 import io.github.vrcmteam.vrcm.network.api.worlds.data.WorldUpdateData
+import io.github.vrcmteam.vrcm.mobilecore.instanceGet
+import io.github.vrcmteam.vrcm.mobilecore.CoreJson
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
+import io.github.vrcmteam.vrcm.mobilecore.worldGet
 import io.github.vrcmteam.vrcm.network.extensions.checkSuccess
 import io.ktor.client.*
 import io.ktor.client.request.*
@@ -25,7 +29,12 @@ class WorldsApi(private val client: HttpClient)  {
      * @return WorldData 世界数据对象
      */
     suspend fun getWorldById(worldId: String): WorldData =
-        client.get("$WORLDS_API_PREFIX/$worldId").checkSuccess()
+        // Served by the core's world cache. `full = true` keeps what this call site always got
+        // (capacity, occupants, instances); the cache-first summary would drop those.
+        CoreJson.decodeFromString(
+            WorldData.serializer(),
+            vrcxCoreClient().worldGet(worldId, full = true).bodyOrThrow(),
+        )
 
     suspend fun getWorldPublishStatus(worldId: String): WorldPublishStatus =
         client.get("$WORLDS_API_PREFIX/$worldId/publish").checkSuccess()
@@ -58,7 +67,12 @@ class WorldsApi(private val client: HttpClient)  {
         }.checkSuccess()
 
     suspend fun getWorldInstanceById(worldId: String, instanceId: String): InstanceData =
-        client.get("$WORLDS_API_PREFIX/$worldId/$instanceId").checkSuccess()
+        // `GET worlds/{worldId}/{instanceId}` and `GET instances/{worldId}:{instanceId}` are the
+        // same read; the core exposes the latter as a command.
+        CoreJson.decodeFromString(
+            InstanceData.serializer(),
+            vrcxCoreClient().instanceGet(worldId, instanceId).bodyOrThrow(),
+        )
         
     /**
      * 搜索世界
@@ -209,3 +223,5 @@ class WorldsApi(private val client: HttpClient)  {
             ownerId?.let { parameter("ownerId", it) }
         }.checkSuccess()
 }
+
+
