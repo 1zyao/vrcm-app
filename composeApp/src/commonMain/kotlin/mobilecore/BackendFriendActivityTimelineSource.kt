@@ -55,13 +55,21 @@ internal class BackendFriendActivityTimelineSource(
         emit(query(token, types, limit, cursor))
     }
 
+    /**
+     * The window from the newest row down to [cursor].
+     *
+     * The model renders this result from the top and replaces the visible list with it, so the
+     * query has to be anchored at the head. Asking the backend for rows *before* the cursor (what
+     * observeBefore does) replaced the list with an older page - that is why a filtered view
+     * showed an older "newest" row than the unfiltered one.
+     */
     override fun observeThrough(
         token: AccountSessionToken,
         types: Set<FriendActivityEventType>,
         cursor: FriendActivityTimelineCursor,
         limit: Int,
     ): Flow<List<FriendActivityEvent>> = flow {
-        emit(query(token, types, limit, cursor))
+        emit(query(token, types, limit, cursor = null))
     }
 
     private suspend fun query(
@@ -95,6 +103,14 @@ internal class BackendFriendActivityTimelineSource(
         }
 
         val array = runCatching { rows.jsonArray }.getOrElse { return emptyList() }
+        if (array.isNotEmpty()) {
+            val head = (array.first() as? JsonObject)
+            println(
+                "[VrcxCore] feed page: filters=${types.toFeedFilters()} rows=${array.size} " +
+                    "firstType=${head?.str("type")} firstAt=${head?.str("created_at")} " +
+                    "lastAt=${(array.last() as? JsonObject)?.str("created_at")}"
+            )
+        }
 
         // Feed rows do not carry the friend's profile icon, so it is joined in from the roster
         // baseline - the same wrapped data the friend list uses. Without this the timeline shows

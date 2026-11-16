@@ -20,6 +20,7 @@ import io.github.vrcmteam.vrcm.mobilecore.feedRows
 import kotlinx.coroutines.launch
 import io.ktor.client.call.body
 import io.ktor.client.request.get
+import io.github.vrcmteam.vrcm.mobilecore.feedQuery
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -155,6 +156,34 @@ class MainActivity : ComponentActivity() {
                             }
                         }
                     }.onFailure { Log.e("VrcxCore", "event stream failed", it) }
+                }
+
+                // TEMP probe: the timeline's filtered path, exercised without the UI (menu taps
+                // are unreliable on this emulator). This is the same Kotlin call the model makes,
+                // so it separates "backend filtering" from "UI selection".
+                launch {
+                    kotlinx.coroutines.delay(16_000)
+                    val probeUserId = io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
+                        .currentSession.value?.account?.userId ?: return@launch
+                    listOf(
+                        emptyList<String>(),
+                        listOf("GPS"),
+                        listOf("Status"),
+                        listOf("Avatar"),
+                    ).forEach { filters ->
+                        runCatching { core.feedQuery(probeUserId, "lookup", 10, filters = filters) }
+                            .onSuccess { result ->
+                                val arr = runCatching { result.jsonArray }.getOrDefault(emptyList())
+                                val first = arr.firstOrNull()?.jsonObject
+                                Log.i(
+                                    "VrcxCore",
+                                    "probe filters=$filters rows=${arr.size} " +
+                                        "firstType=${first?.get("type")?.jsonPrimitive?.content} " +
+                                        "firstAt=${first?.get("created_at")?.jsonPrimitive?.content}"
+                                )
+                            }
+                            .onFailure { Log.e("VrcxCore", "probe filters=$filters failed", it) }
+                    }
                 }
 
                 // Transport probe: `config` is a public VRChat endpoint, so a 200
