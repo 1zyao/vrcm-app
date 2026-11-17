@@ -54,7 +54,10 @@ internal val networkModule = module(true) {
     singleOf(::WebSocketApi) {
         onClose { it?.close() }
     }
-    singleOf(::GitHubApi)
+    // Its own client on purpose: the release check talks to api.github.com, which has nothing to do
+    // with the VRChat core. Wired to the shared client it went through the core's `app__web_execute`
+    // passthrough, where it could sit behind a long sync cycle and hit the request timeout.
+    single { GitHubApi(HttpClient()) }
     singleOf(::AppStoreApi)
     singleOf(::GroupsApi)
     singleOf(::PrintsApi)

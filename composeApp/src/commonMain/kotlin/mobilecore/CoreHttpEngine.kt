@@ -120,9 +120,23 @@ class CoreHttpEngine(
             )
         }
 
-        // Evidence that VRCM's own API client goes through the core: every proxied
-        // request shows up here. println lands in logcat as System.out.
-        println("[VrcxCore] proxy ${data.method.value} ${data.url}")
+        // Every request that lands here is a leftover of the passthrough this app is being moved off:
+        // it forwards a raw URL instead of calling a semantic command. Say so with the calling stack,
+        // because "some image went through the core" is not actionable while "this composable asked
+        // for this URL" is. Once the remaining call sites are cleared, PASSTHROUGH_STRICT makes it an
+        // assertion instead of a log line.
+        println(
+            "[VrcxCore] PASSTHROUGH ${data.method.value} ${data.url}\n" +
+                Throwable().stackTraceToString(),
+        )
+        if (PASSTHROUGH_STRICT) {
+            return errorResponse(
+                requestTime = requestTime,
+                callContext = callCtx,
+                message = "该请求走的是透传（app__web_execute）：${data.method.value} ${data.url}。" +
+                    "应改为语义命令，或改用独立的普通客户端。",
+            )
+        }
 
         return try {
             // Ktor's HttpTimeout capability is not forwarded to this engine, so a
@@ -300,9 +314,27 @@ private fun ByteArray.toBodyElement(): JsonElement =
 /**
  * Upper bound for one command round trip.
  *
- * Matches the 60 s the client would otherwise have got from HttpTimeout's socket
- * timeout: long enough for a slow VRChat response, short enough that a wedged core
- * surfaces as an error instead of a hung UI.
+ * Was 60 s, chosen to match HttpTimeout's socket timeout. That turned out to be too tight for the
+ * first sync: a bootstrap cycle measured 67,910 ms pushing 400k rows, and any request that queues
+ * behind it died with "VRCX core did not answer within 60000 ms" instead of just being slow.
+ *
+ * Three minutes is not a guess at a healthy latency - it is a ceiling for a *slow* core, so that a
+ * busy engine reads as slow rather than broken. A wedged core still surfaces as an error in bounded
+ * time.
  */
-private const val CORE_REQUEST_TIMEOUT_MS = 60_000L
+private const val CORE_REQUEST_TIMEOUT_MS = 180_000L
+
+/**
+ * Whether a request that reaches this engine should fail loudly instead of being proxied.
+ *
+ * This engine is the `app__web_execute` passthrough the phone is being moved off: it forwards a raw
+ * VRChat URL to the core instead of calling a semantic command. Every request that lands here is a
+ * leftover, and the honest thing is to say so with the calling stack rather than quietly forwarding
+ * it - which is what happened for weeks while images were fetched this way and nobody could tell.
+ *
+ * Deliberately not `true` by default: some paths still depend on it on purpose (uploads and other
+ * writes that have no command yet), and flipping this to `true` turns them into failures rather than
+ * findings. Set it when those are cleared, and the passthrough becomes an assertion.
+ */
+private const val PASSTHROUGH_STRICT = false
 
