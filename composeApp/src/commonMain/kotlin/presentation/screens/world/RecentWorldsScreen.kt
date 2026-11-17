@@ -26,17 +26,25 @@ import io.github.vrcmteam.vrcm.presentation.screens.world.data.WorldProfileVo
 import io.github.vrcmteam.vrcm.presentation.supports.AppIcons
 import io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
 import io.github.vrcmteam.vrcm.mobilecore.VrcxCoreException
-import io.github.vrcmteam.vrcm.mobilecore.gameLogSessionsQuery
+import io.github.vrcmteam.vrcm.mobilecore.instanceHistoryQuery
+import io.github.vrcmteam.vrcm.presentation.compoments.AImage
+import io.github.vrcmteam.vrcm.mobilecore.worldGet
+import io.github.vrcmteam.vrcm.mobilecore.worldSummariesGet
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.ExperimentalTime
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -59,6 +67,10 @@ data class RecentVisitVo(
     val visitedAt: String,
     val durationMinutes: Int?,
     val playerCount: Int,
+    /** Sort key: the raw instant. `visitedAt` is already formatted and cannot be ordered. */
+    val visitedAtMillis: Long = 0L,
+    /** World cover from the local world cache; empty when that world was never cached. */
+    val coverUrl: String = "",
 )
 
 class RecentWorldsScreenModel : ViewModel() {
@@ -126,7 +138,10 @@ class RecentWorldsScreenModel : ViewModel() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
                 val sessions = runCatching {
-                    vrcxCoreClient().gameLogSessionsQuery(limit = target).jsonArray
+                    vrcxCoreClient().instanceHistoryQuery(
+                        userId = SharedFlowCentre.currentSession.value?.account?.userId.orEmpty(),
+                        limit = target,
+                    ).jsonArray
                 }.getOrElse { error ->
                     throw error as? IllegalArgumentException
                         ?: IllegalStateException(
@@ -136,12 +151,71 @@ class RecentWorldsScreenModel : ViewModel() {
                         )
                 }
                 requestedSessions = target
-                val page = sessions.mapNotNull { element ->
-                    runCatching { element.jsonObject }.getOrNull()?.let(::toVisit)
+
+                // The backend selects the newest groups but returns their rows in ascending id
+                // order (`ORDER BY group_id DESC` then `ORDER BY id ASC`), so each page arrives
+                // oldest-first. Sorting here makes every page newest-first, which is also how the
+                // pages concatenate.
+                val page = sessions
+                    .mapNotNull { element ->
+                        runCatching { element.jsonObject }.getOrNull()?.let(::toVisit)
+                    }
+                    .sortedByDescending { it.visitedAtMillis }                // One bulk read for the page's worlds: `app__world_summaries_get` is the same command
+                // the desktop page uses, and it only reads the local cache (no per-row network call -
+                // fifty of those is what made an earlier attempt at this page hang).
+                val covered = runCatching {
+                    val ids = page.map { it.worldId }.distinct()
+                    if (ids.isEmpty()) {
+                        emptyMap()
+                    } else {
+                        val summaries = vrcxCoreClient().worldSummariesGet(ids).jsonObject
+                        ids.associateWith { id ->
+                            (summaries[id] as? kotlinx.serialization.json.JsonObject)
+                                ?.get("imageUrl")?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
+                                .orEmpty()
+                        }
+                    }
+                }.getOrDefault(emptyMap())
+                // Worlds the local cache has never seen: fetch them through VRCX's own cache-first
+                // read (`app__world_get` writes the row back into `cache_world`, so each world costs
+                // one fetch ever). Bounded on every axis so a slow network cannot stall the page:
+                // at most 20 per page, 4 at a time, 3s each, and it gives up after 3 failures.
+                val missing = page.map { it.worldId }
+                    .distinct()
+                    .filter { covered[it].isNullOrEmpty() }
+                    .take(20)
+                val fetched = LinkedHashMap<String, String>()
+                var failures = 0
+                for (batch in missing.chunked(4)) {
+                    if (failures >= 3) break
+                    val results = coroutineScope {
+                        batch.map { id ->
+                            async {
+                                id to runCatching {
+                                    withTimeoutOrNull(3_000L) {
+                                        // `worldGet` answers the `VrchatResponse { status, data }`
+                                        // envelope with `data` as a JSON *string*.
+                                        val result = vrcxCoreClient().worldGet(id, full = true)
+                                        val body = Json.parseToJsonElement(result.data).jsonObject
+                                        (body["imageUrl"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+                                    }
+                                }.getOrNull().orEmpty()
+                            }
+                        }.awaitAll()
+                    }
+                    for ((id, url) in results) {
+                        if (url.isBlank()) failures++ else { failures = 0; fetched[id] = url }
+                    }
+                }
+                val pageWithCovers = page.map { visit ->
+                    visit.copy(
+                        coverUrl = covered[visit.worldId].orEmpty()
+                            .ifBlank { fetched[visit.worldId].orEmpty() },
+                    )
                 }
                 pagingState = appendRecentWorldPage(
                     current = if (reset) RecentWorldPagingState() else pagingState,
-                    page = page,
+                    page = pageWithCovers,
                     pageSize = target,
                     keySelector = { it.worldId },
                 )
@@ -173,13 +247,23 @@ private val VISIT_TIME_ZONE = TimeZone.currentSystemDefault()
  * The session JSON is camelCase except `created_at`, which a serde rename keeps in snake_case - so
  * reading `world_name` here silently yields nothing while `worldName` holds the name.
  */
+/**
+ * One room visit from `app__instance_history_query`.
+ *
+ * `location` is the world id plus instance flags (`wrld_…:12345~friends(usr_…)`), and `time` is
+ * milliseconds spent there - the desktop reads it the same way (`previousInstancesRows.ts`).
+ * `events` counts the join/leave events recorded during the visit, which is the closest thing this
+ * read has to "how many people passed through".
+ */
+@OptIn(ExperimentalTime::class)
 private fun toVisit(row: kotlinx.serialization.json.JsonObject): RecentVisitVo? {
-    val worldId = (row["worldId"] as? JsonPrimitive)?.contentOrNull.orEmpty()
-    val createdAt = (row["created_at"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+    val location = (row["location"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+    val createdAt = (row["createdAt"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+    val worldId = location.substringBefore(':')
     if (worldId.isBlank() || createdAt.isBlank()) return null
     val name = (row["worldName"] as? JsonPrimitive)?.contentOrNull.orEmpty()
-    val durationMs = (row["duration"] as? JsonPrimitive)?.longOrNull
-    val players = (row["playerDurationRows"] as? JsonArray)?.size ?: 0
+    val durationMs = (row["time"] as? JsonPrimitive)?.longOrNull
+    val events = (row["events"] as? JsonArray)?.size ?: 0
     return RecentVisitVo(
         worldId = worldId,
         worldName = name.ifBlank { worldId },
@@ -187,7 +271,10 @@ private fun toVisit(row: kotlinx.serialization.json.JsonObject): RecentVisitVo? 
         durationMinutes = durationMs
             ?.takeIf { it > 0 }
             ?.let { (it / 60_000L).toInt().coerceAtLeast(1) },
-        playerCount = players,
+        playerCount = events,
+        visitedAtMillis = runCatching {
+            kotlinx.datetime.Instant.parse(createdAt).toEpochMilliseconds()
+        }.getOrDefault(0L),
     )
 }
 
@@ -362,12 +449,21 @@ private fun RecentVisitItem(visit: RecentVisitVo, onClick: () -> Unit) {
                     .background(AppTheme.colors.fill),
                 contentAlignment = Alignment.Center,
             ) {
-                AppIcon(
-                    imageVector = AppIcons.DateRange,
-                    contentDescription = null,
-                    tint = AppTheme.colors.secondaryLabel,
-                    modifier = Modifier.size(20.dp),
-                )
+                // The world cover, read from the local world cache in one bulk call per page. A world
+                // that was never cached falls back to the calendar glyph instead of fetching it.
+                if (visit.coverUrl.isBlank()) {
+                    AppIcon(
+                        imageVector = AppIcons.DateRange,
+                        contentDescription = null,
+                        tint = AppTheme.colors.secondaryLabel,
+                        modifier = Modifier.size(20.dp),
+                    )
+                } else {
+                    AImage(
+                        imageData = visit.coverUrl,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
             }
         },
         chevron = true,

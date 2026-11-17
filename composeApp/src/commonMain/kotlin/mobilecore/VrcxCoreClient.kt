@@ -780,27 +780,41 @@ suspend fun VrcxCoreClient.favoriteDetailsHydrate(
     return details.mapNotNull { (key, value) -> (value as? JsonObject)?.let { key to it } }.toMap()
 }
 
+/**
+ * Bulk world summaries from the local world cache (`app__world_summaries_get`).
+ *
+ * Same command the desktop page uses; it reads `cache_world`, so it costs one round trip per page and
+ * never reaches the network. Worlds that were never cached are simply absent from the map.
+ */
+suspend fun VrcxCoreClient.worldSummariesGet(worldIds: List<String>): JsonElement = invoke(
+    "app__world_summaries_get",
+    buildJsonObject {
+        put("worldIds", kotlinx.serialization.json.JsonArray(worldIds.map { kotlinx.serialization.json.JsonPrimitive(it) }))
+    },
+)
+
 /** World search (`app__vrchat_search_worlds_get`). */
 /**
- * VRCX's recorded sessions (`app__game_log_sessions_query`).
+ * Room history (`app__instance_history_query`) — the same read the desktop's 房间历史 page performs.
  *
- * This is the local game log, i.e. what the desktop recorded, not a VRChat endpoint. Fields come
- * back in camelCase (`worldName`, `playerDurationRows`, …); `created_at` is the exception, kept in
- * snake_case by an explicit serde rename.
+ * One entry per room visit: `createdAt`, `location` (world id + instance flags), `worldName`,
+ * `groupName`, `time` (milliseconds spent there), `events` and `lastTs`. It replaced
+ * `app__game_log_sessions_query`, which answered "which stretch of time" rather than "which rooms",
+ * and so carried neither the access type nor the per-day grouping.
  */
-suspend fun VrcxCoreClient.gameLogSessionsQuery(
-    limit: Int = 20,
-    search: String = "",
+suspend fun VrcxCoreClient.instanceHistoryQuery(
+    userId: String,
     dateFrom: String = "",
     dateTo: String = "",
+    limit: Int = 50,
 ): JsonElement = invoke(
-    "app__game_log_sessions_query",
+    "app__instance_history_query",
     buildJsonObject {
         put("input", buildJsonObject {
-            put("limit", limit)
-            if (search.isNotEmpty()) put("search", search)
+            put("userId", userId)
             if (dateFrom.isNotEmpty()) put("dateFrom", dateFrom)
             if (dateTo.isNotEmpty()) put("dateTo", dateTo)
+            put("limit", limit)
         })
     },
 )
