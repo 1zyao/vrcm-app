@@ -1,0 +1,13 @@
+name: probeC
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group:${{ github.workflow }}${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  hi:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo C
