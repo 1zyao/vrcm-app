@@ -426,6 +426,22 @@ suspend fun VrcxCoreClient.worldGet(
     }
 ).toVrchatResult()
 
+/** The available avatar styles (`app__vrchat_avatar_styles_get`). */
+suspend fun VrcxCoreClient.avatarStylesGet(): VrchatResult =
+    invoke("app__vrchat_avatar_styles_get").toVrchatResult()
+
+/**
+ * One avatar by id (`app__vrchat_avatar_get`).
+ *
+ * This command name is ours, not cloud's: cloud's `app__avatar_get` is a local cache read, and its
+ * per-avatar paths go through the list or gallery commands. The request behind it is the protocol's
+ * own `avatar_get_input`, so the wire shape is still VRCX's.
+ */
+suspend fun VrcxCoreClient.avatarGet(avatarId: String): VrchatResult = invoke(
+    "app__vrchat_avatar_get",
+    buildJsonObject { put("input", buildJsonObject { put("avatarId", avatarId) }) }
+).toVrchatResult()
+
 /**
  * An avatar list, optionally scoped to one owner (`app__vrchat_avatar_list_by_user_get`).
  *
@@ -765,6 +781,7 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
 
 
 

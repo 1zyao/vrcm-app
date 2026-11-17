@@ -13,6 +13,8 @@ import io.github.vrcmteam.vrcm.mobilecore.FavoritesBaselineCache
 import io.github.vrcmteam.vrcm.mobilecore.favoriteDetailsHydrate
 import io.github.vrcmteam.vrcm.mobilecore.favoriteEntityIds
 import io.github.vrcmteam.vrcm.mobilecore.CoreJson
+import io.github.vrcmteam.vrcm.mobilecore.avatarGet
+import io.github.vrcmteam.vrcm.mobilecore.avatarStylesGet
 import io.github.vrcmteam.vrcm.mobilecore.avatarListByUserGet
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import kotlinx.serialization.builtins.ListSerializer
@@ -26,10 +28,16 @@ import kotlinx.coroutines.flow.flow
 class AvatarsApi(private val client: HttpClient) {
 
     suspend fun getAvatarStyles(): List<AvatarStyle> =
-        client.get("avatarStyles").checkSuccess()
+        CoreJson.decodeFromString(
+            ListSerializer(AvatarStyle.serializer()),
+            vrcxCoreClient().avatarStylesGet().bodyOrThrow(),
+        )
 
     suspend fun getAvatarById(avatarId: String): AvatarData =
-        client.get("$AVATARS_API_PREFIX/$avatarId").checkSuccess()
+        CoreJson.decodeFromString(
+            AvatarData.serializer(),
+            vrcxCoreClient().avatarGet(avatarId).bodyOrThrow(),
+        )
 
     suspend fun selectAvatar(avatarId: String): AvatarSelectionData =
         client.put("$AVATARS_API_PREFIX/$avatarId/select").checkSuccess()
@@ -156,5 +164,7 @@ class AvatarsApi(private val client: HttpClient) {
         }
     }
 }
+
+
 
 
