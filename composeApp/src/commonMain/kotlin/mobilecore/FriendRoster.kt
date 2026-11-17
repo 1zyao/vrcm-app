@@ -19,6 +19,10 @@ import kotlinx.serialization.json.jsonObject
 internal object FriendRosterCache {
     private const val TTL_MS = 2_000L
 
+    /** How long to wait for the backend's friend baseline before treating `stale` as a real fault. */
+    private const val STALE_RETRIES = 6
+    private const val STALE_RETRY_DELAY_MS = 500L
+
     private val mutex = Mutex()
     private var cacheUserId: String? = null
     private var cacheAge = kotlin.time.TimeSource.Monotonic.markNow()
@@ -34,9 +38,25 @@ internal object FriendRosterCache {
             }
         }
 
-        val response = client.socialFriendRosterBaseline(userId)
-        val root = response.jsonObject
-        val stale = root["stale"]?.toString()?.contains("true") == true
+        // Right after login the backend is still fetching VRChat's friend baseline, and for a few
+        // seconds it honestly reports `stale: true`. That is a warm-up, not a failure: reported as an
+        // error it became a red toast reading "获取好友列表失败: the backend has no active session for
+        // the friend roster yet (stale baseline)" - an internal English sentence shown to a user who
+        // did nothing wrong.
+        //
+        // So wait for it briefly. Six tries at 500 ms covers the ~3 s the baseline usually takes;
+        // past that something really is off and the caller should hear about it.
+        var response = client.socialFriendRosterBaseline(userId)
+        var root = response.jsonObject
+        var stale = root["stale"]?.toString()?.contains("true") == true
+        var attempt = 0
+        while (stale && attempt < STALE_RETRIES) {
+            kotlinx.coroutines.delay(STALE_RETRY_DELAY_MS)
+            response = client.socialFriendRosterBaseline(userId)
+            root = response.jsonObject
+            stale = root["stale"]?.toString()?.contains("true") == true
+            attempt++
+        }
         val snapshot = root["snapshot"] as? JsonObject
         if (stale || snapshot == null) {
             throw VrcxCoreException(
@@ -44,7 +64,6 @@ internal object FriendRosterCache {
                 "the backend has no active session for the friend roster yet (stale baseline)"
             )
         }
-
         cacheUserId = userId
         cacheAge = kotlin.time.TimeSource.Monotonic.markNow()
         cacheSnapshot = snapshot
