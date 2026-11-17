@@ -1,0 +1,13 @@
+name: probeD
+on:
+  workflow_dispatch:
+    inputs:
+      build_core:
+        type: boolean
+        default: true
+jobs:
+  hi:
+    runs-on: ubuntu-latest
+    steps:
+      - if: ${{ inputs.build_core }}
+        run: echo D
