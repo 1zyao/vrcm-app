@@ -52,6 +52,10 @@ internal fun SyncConnectionSection() {
     val s = strings
 
     SettingsGroup(title = s.settingsSyncConnectionTitle) {
+        // Every field below is a *summary*: one editor, in the dialog. Having switches here and the
+        // same switches inside the dialog gave two write paths for one setting, which is how a
+        // screen starts disagreeing with itself. Testing lives in the dialog for the same reason -
+        // that is where you are when you have just changed the address.
         AppRow(
             title = s.settingsSyncServer,
             value = if (status.host.isBlank()) "-"
@@ -62,74 +66,66 @@ internal fun SyncConnectionSection() {
             onClick = { showConfigure = true },
         )
         SettingsRowDivider()
-        SyncSwitchRow(
+        AppRow(
             title = s.settingsSyncTlsVerify,
-            description = s.settingsSyncTlsVerifyHint,
-            checked = status.tlsVerify,
+            value = if (status.tlsVerify) s.settingsSwitchOn else s.settingsSwitchOff,
             enabled = !busy,
-        ) { next ->
-            scope.launch { service.saveSwitches(tlsVerify = next, allowPlaintext = status.allowPlaintext) }
-        }
+            chevron = true,
+            onClick = { showConfigure = true },
+        )
         SettingsRowDivider()
-        SyncSwitchRow(
+        AppRow(
             title = s.settingsSyncAllowPlaintext,
-            description = s.settingsSyncAllowPlaintextHint,
-            checked = status.allowPlaintext,
+            value = if (status.allowPlaintext) s.settingsSwitchOn else s.settingsSwitchOff,
             enabled = !busy,
-        ) { next ->
-            scope.launch { service.saveSwitches(tlsVerify = status.tlsVerify, allowPlaintext = next) }
-        }
+            chevron = true,
+            onClick = { showConfigure = true },
+        )
         SettingsRowDivider()
-        // Test and the enable switch share a row, as they do at the bottom of the desktop card.
+        AppRow(
+            title = s.settingsSyncInterval,
+            value = fractionOrDash(status.intervalSeconds),
+            enabled = !busy,
+            chevron = true,
+            onClick = { showConfigure = true },
+        )
+        SettingsRowDivider()
+        AppRow(
+            title = s.settingsSyncPriority,
+            value = fractionOrDash(status.collectorPriority),
+            enabled = !busy,
+            chevron = true,
+            onClick = { showConfigure = true },
+        )
+        SettingsRowDivider()
+        // The enable switch is an action, not a field: it applies immediately, as on the desktop.
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            AppButton(
-                onClick = {
-                    scope.launch {
-                        service.test(
-                            host = status.host,
-                            port = status.port,
-                            user = status.user,
-                            password = "",
-                            database = status.database,
-                            tlsVerify = status.tlsVerify,
-                            allowPlaintext = status.allowPlaintext,
-                        )
-                    }
-                },
-                enabled = !testing && !busy,
-                style = AppButtonStyle.Plain,
-            ) { AppText(if (testing) s.settingsSyncTesting else s.settingsSyncTest) }
-            if (testing) {
-                AppActivityIndicator(modifier = Modifier.size(18.dp))
-            }
-            testResult?.let { result ->
-                AppText(
-                    text = if (result.ok) {
-                        s.settingsSyncTestOk.replace("%ms%", result.latencyMs.toString())
-                    } else {
-                        result.error ?: s.settingsSyncTestFailed
-                    },
-                    style = AppTheme.type.footnote,
-                    color = if (result.ok) AppTheme.colors.tint else AppTheme.colors.destructive,
-                )
-            }
-            Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.End) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    AppText(text = s.settingsSyncEnabled, style = AppTheme.type.body)
-                    AppToggle(
-                        checked = status.enabled,
-                        onCheckedChange = { next -> scope.launch { service.setEnabled(next) } },
-                        enabled = !busy,
+            Column(modifier = Modifier.weight(1f)) {
+                AppText(text = s.settingsSyncEnabled, style = AppTheme.type.body)
+                testResult?.let { result ->
+                    AppText(
+                        text = if (result.ok) {
+                            s.settingsSyncTestOk.replace("%ms%", result.latencyMs.toString())
+                        } else {
+                            result.error ?: s.settingsSyncTestFailed
+                        },
+                        style = AppTheme.type.footnote,
+                        color = if (result.ok) AppTheme.colors.tint else AppTheme.colors.destructive,
                     )
                 }
             }
+            if (testing) {
+                AppActivityIndicator(modifier = Modifier.size(16.dp))
+            }
+            AppToggle(
+                checked = status.enabled,
+                onCheckedChange = { next -> scope.launch { service.setEnabled(next) } },
+                enabled = !busy,
+            )
         }
     }
 
@@ -386,6 +382,9 @@ private fun bootstrapPhaseLabel(strings: LocaleStrings, phase: String): String =
     "bootstrap" -> strings.settingsSyncPhaseBootstrap
     else -> strings.settingsSyncPhaseRunning
 }
+
+/** Row values are shown as-is; 0 means "not read yet", which should not look like a real 0. */
+private fun fractionOrDash(value: Int): String = if (value > 0) value.toString() else "-"
 
 /** A row whose value is several lines (history, device list). `AppRow` is single-line by design. */
 @Composable

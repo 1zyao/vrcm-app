@@ -1166,6 +1166,9 @@ override val notificationInviteRequest = "請求邀請"
     override val settingsSyncTransferred = "拉取 / 推送"
     override val settingsSyncEnabled = "啟用同步"
 
+    override val settingsSwitchOn = "開"
+    override val settingsSwitchOff = "關"
+
     override val settingsSyncPhase = "引擎狀態"
 
     override val settingsSyncConnectionTitle = "遠端資料庫同步"

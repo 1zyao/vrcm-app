@@ -1195,6 +1195,9 @@ override val notificationInviteRequest = "招待リクエスト"
     override val settingsSyncTransferred = "取得 / 送信"
     override val settingsSyncEnabled = "同期を有効化"
 
+    override val settingsSwitchOn = "オン"
+    override val settingsSwitchOff = "オフ"
+
     override val settingsSyncPhase = "エンジン状態"
 
     override val settingsSyncConnectionTitle = "リモートデータベース同期"

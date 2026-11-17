@@ -1244,6 +1244,9 @@ sealed class LocaleStrings {
     open val settingsSyncTransferred: String = "Pulled / pushed"
     open val settingsSyncEnabled: String = "Enable sync"
 
+    open val settingsSwitchOn: String = "On"
+    open val settingsSwitchOff: String = "Off"
+
     open val settingsSyncPhase: String = "Engine state"
 
     open val settingsSyncConnectionTitle: String = "Remote database sync"
