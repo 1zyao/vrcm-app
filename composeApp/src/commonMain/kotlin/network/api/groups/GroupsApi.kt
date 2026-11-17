@@ -12,6 +12,8 @@ import io.github.vrcmteam.vrcm.network.api.groups.data.LimitedGroup
 import io.github.vrcmteam.vrcm.network.api.groups.data.UpdateGroupMemberNotificationsRequest
 import io.github.vrcmteam.vrcm.network.api.groups.data.UpdateGroupRepresentationRequest
 import io.github.vrcmteam.vrcm.mobilecore.CoreJson
+import io.github.vrcmteam.vrcm.mobilecore.groupJoin
+import io.github.vrcmteam.vrcm.mobilecore.groupLeave
 import io.github.vrcmteam.vrcm.mobilecore.groupGet
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import io.github.vrcmteam.vrcm.network.extensions.checkSuccess
@@ -43,18 +45,24 @@ class GroupsApi(private val client: HttpClient) {
         groupId: String,
         inviteId: String? = null,
         confirmOverrideBlock: Boolean? = null,
-    ): GroupMember =
-        client.post("$GROUPS_API_PREFIX/$groupId/join") {
-            confirmOverrideBlock?.let { parameter("confirmOverrideBlock", it) }
-            if (inviteId != null) {
-                setBody(JoinGroupRequest(inviteId))
-                contentType(ContentType.Application.Json)
-            }
-        }.checkSuccess()
+    ): GroupMember {
+        // Served by the backend's join command. It has no invite or block-override parameter and no
+        // caller here passes either, so both are rejected rather than silently ignored - joining via
+        // an invite must not quietly become a plain join.
+        require(inviteId == null) { "joining through an invite is not available through the backend" }
+        require(confirmOverrideBlock == null) {
+            "confirmOverrideBlock is not available through the backend"
+        }
+        return CoreJson.decodeFromString(
+            GroupMember.serializer(),
+            vrcxCoreClient().groupJoin(groupId).bodyOrThrow(),
+        )
+    }
 
-    suspend fun leaveGroup(groupId: String) =
-        client.post("$GROUPS_API_PREFIX/$groupId/leave")
-            .checkSuccess { Unit }
+    suspend fun leaveGroup(groupId: String) {
+        // The backend answers with VRChat's response envelope; this call site has always discarded it.
+        vrcxCoreClient().groupLeave(groupId)
+    }
 
     suspend fun updateRepresentation(groupId: String, isRepresenting: Boolean) =
         client.put("$GROUPS_API_PREFIX/$groupId/representation") {
@@ -122,4 +130,6 @@ class GroupsApi(private val client: HttpClient) {
             .checkSuccess()
 
 }
+
+
 

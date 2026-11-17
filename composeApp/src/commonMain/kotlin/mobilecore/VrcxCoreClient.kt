@@ -593,6 +593,18 @@ suspend fun VrcxCoreClient.searchWorldsGet(
     }
 ).toVrchatResult()
 
+/** Joins a group (`app__vrchat_group_join`). */
+suspend fun VrcxCoreClient.groupJoin(groupId: String): VrchatResult = invoke(
+    "app__vrchat_group_join",
+    buildJsonObject { put("input", buildJsonObject { put("groupId", groupId) }) }
+).toVrchatResult()
+
+/** Leaves a group (`app__vrchat_group_leave`). */
+suspend fun VrcxCoreClient.groupLeave(groupId: String): VrchatResult = invoke(
+    "app__vrchat_group_leave",
+    buildJsonObject { put("input", buildJsonObject { put("groupId", groupId) }) }
+).toVrchatResult()
+
 /** The groups a user belongs to (`app__vrchat_group_user_groups_get`). */
 suspend fun VrcxCoreClient.groupUserGroupsGet(userId: String): VrchatResult = invoke(
     "app__vrchat_group_user_groups_get",
@@ -680,6 +692,7 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
 
 
 
