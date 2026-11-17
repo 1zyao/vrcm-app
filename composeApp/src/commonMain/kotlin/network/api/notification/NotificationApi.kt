@@ -74,27 +74,6 @@ class NotificationApi(
 
 
 
-    /** Marks a current Pipeline `/notifications` item as seen. */
-    suspend fun markPipelineNotificationAsRead(notificationId: String) {
-        client.post {
-            url { path(NOTIFICATIONS_API_PREFIX, notificationId, "see") }
-        }.checkSuccess<Unit>()
-    }
-
-    /** Marks a legacy `/auth/user/notifications` item as seen. */
-    suspend fun markLegacyNotificationAsRead(notificationId: String): VRChatResponse =
-        client.put {
-            url {
-                path(
-                    AUTH_API_PREFIX,
-                    USER_API_PREFIX,
-                    NOTIFICATIONS_API_PREFIX,
-                    notificationId,
-                    "see"
-                )
-            }
-        }.checkSuccess()
-
     /** Deletes a notification returned by the current `/notifications` API. */
     suspend fun deleteNotificationV2(notificationId: String) {
         client.delete {
