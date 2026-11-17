@@ -605,6 +605,37 @@ suspend fun VrcxCoreClient.notificationMarkSeenBatch(
 suspend fun VrcxCoreClient.syncStatus(): JsonElement = invoke("sync__status")
 
 /**
+ * Every stored config entry (`app__config_list_values`).
+ *
+ * Keys come back resolved (`config:vrcx_maxtablesize_v2`), not as the app spells them.
+ */
+suspend fun VrcxCoreClient.configListValues(): JsonElement = invoke("app__config_list_values")
+
+/**
+ * Writes config entries (`app__config_set_values`).
+ *
+ * The backend resolves each key itself: `maxTableSize_v2` becomes
+ * `config:vrcx_maxtablesize_v2`, so callers pass VRCX's own spelling.
+ */
+suspend fun VrcxCoreClient.configSetValues(entries: List<Pair<String, String>>): JsonElement =
+    invoke(
+        "app__config_set_values",
+        buildJsonObject {
+            put(
+                "entries",
+                JsonArray(
+                    entries.map { (key, value) ->
+                        buildJsonObject {
+                            put("key", key)
+                            put("value", value)
+                        }
+                    },
+                ),
+            )
+        },
+    )
+
+/**
  * Writes the sync configuration and restarts the engine (`sync__configure`).
  *
  * The wire shape is cloud's: flat `enabled` / `intervalSec` / `connection` on the args, not wrapped
@@ -960,6 +991,7 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
 
 
 

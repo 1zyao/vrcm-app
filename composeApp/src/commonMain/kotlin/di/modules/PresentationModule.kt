@@ -109,6 +109,8 @@ val presentationModule: Module = module {
     // One holder for the sync status, so the settings screen sees the same numbers wherever it is
     // reached from (and a triggered cycle updates every observer).
     single { io.github.vrcmteam.vrcm.service.SyncStatusService() }
+    // One holder for the two table limits, read from VRCX's own config keys.
+    single { io.github.vrcmteam.vrcm.service.TableLimitsService() }
     viewModelOf(::AuthScreenModel)
     viewModel { FriendActivityTimelineModel(get<FriendActivityService>()) }
     viewModelOf(::HomeScreenModel)

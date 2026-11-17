@@ -1166,6 +1166,13 @@ override val notificationInviteRequest = "申请加入"
     override val settingsSyncLastCycle = "最近一次同步"
     override val settingsSyncTransferred = "拉取 / 推送"
     override val settingsSyncEnabled = "启用同步"
+
+    override val settingsTableLimits = "数据表上限"
+    override val settingsTableLimitsHint = "每张数据表保留多少行，以及搜索扫描多少行。"
+    override val settingsTableMaxSize = "每表保留行数"
+    override val settingsTableSearchLimit = "搜索扫描上限"
+    override val settingsTableMaxSizeInvalid = "每表保留行数至少为 1。"
+    override val settingsTableSearchLimitInvalid = "搜索扫描上限至少为 1。"
     override val settingsSyncNow = "立即同步"
 
     override val settingsSyncConfigure = "同步目标"

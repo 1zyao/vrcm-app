@@ -1243,6 +1243,13 @@ sealed class LocaleStrings {
     open val settingsSyncLastCycle: String = "Last sync"
     open val settingsSyncTransferred: String = "Pulled / pushed"
     open val settingsSyncEnabled: String = "Enable sync"
+
+    open val settingsTableLimits: String = "Table limits"
+    open val settingsTableLimitsHint: String = "How many rows each table keeps, and how far a search scans."
+    open val settingsTableMaxSize: String = "Rows per table"
+    open val settingsTableSearchLimit: String = "Search scan limit"
+    open val settingsTableMaxSizeInvalid: String = "Rows per table must be at least 1."
+    open val settingsTableSearchLimitInvalid: String = "Search scan limit must be at least 1."
     open val settingsSyncNow: String = "Sync now"
 
     open val settingsSyncConfigure: String = "Sync target"

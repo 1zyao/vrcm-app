@@ -1,6 +1,7 @@
 package io.github.vrcmteam.vrcm.presentation.screens.settings
 
 import io.github.vrcmteam.vrcm.service.SyncStatusService
+import io.github.vrcmteam.vrcm.service.TableLimitsService
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -620,6 +621,54 @@ private fun SyncStatusSection() {
     }
 }
 
+/**
+ * The two limits that decide how much VRCX keeps, edited the way the desktop edits them:
+ * `maxTableSize_v2` and `searchLimit` through the config commands.
+ */
+@Composable
+private fun TableLimitsSection() {
+    val service = koinInject<TableLimitsService>()
+    val limits by service.limits.collectAsState()
+    val scope = rememberCoroutineScope()
+    var showDialog by remember { mutableStateOf(false) }
+    var submitting by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { service.refresh() }
+
+    SettingsGroup(title = strings.settingsTableLimits) {
+        AppRow(
+            title = strings.settingsTableMaxSize,
+            value = if (limits.maxTableSize > 0) limits.maxTableSize.toString() else "-",
+            subtitle = limits.error,
+            enabled = limits.error == null,
+            chevron = true,
+            onClick = { showDialog = true },
+        )
+        SettingsRowDivider()
+        AppRow(
+            title = strings.settingsTableSearchLimit,
+            value = if (limits.searchLimit > 0) limits.searchLimit.toString() else "-",
+            enabled = limits.error == null,
+            chevron = true,
+            onClick = { showDialog = true },
+        )
+    }
+
+    if (showDialog) {
+        TableLimitsDialog(
+            initial = limits,
+            submitting = submitting,
+            onDismiss = { showDialog = false },
+            onSave = { maxTableSize, searchLimit ->
+                showDialog = false
+                submitting = true
+                scope.launch {
+                    service.save(maxTableSize, searchLimit)
+                    submitting = false
+                }
+            },
+        )
+    }
+}
 /** 剪贴板隐私、政策与本地缓存。 */
 @Composable
 private fun PrivacyDataSections(platform: AppPlatform) {
@@ -645,6 +694,7 @@ private fun PrivacyDataSections(platform: AppPlatform) {
     val meetupCardAssetStore = koinInject<MeetupCardAssetStore>()
     val scope = rememberCoroutineScope()
     SyncStatusSection()
+    TableLimitsSection()
     Column {
         SettingsGroup {
             val diskCache = imageLoader.diskCache
