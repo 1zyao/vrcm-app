@@ -19,7 +19,10 @@ concurrency:
 
 jobs:
   build:
-    runs-on: macos-latest
+    # macos-13 is the Intel pool: cross-compiling to aarch64-apple-ios does not need an arm64 host (same
+    # Xcode SDK, same rust target), and the arm64 pool was refusing to hand out runners at all
+    # ("job was not acquired by Runner of type hosted ... capacity constraints").
+    runs-on: macos-13
 
     steps:
       - name: Checkout app
