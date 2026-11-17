@@ -237,8 +237,41 @@ cargo test  -p vrcx-0-mobile-core --lib                               ✅ 5 个�
 脚本构建 Android 核心 build-core.ps1 -Abi x86_64                       ✅
     → libvrcx_0_mobile.so 142.1 MB（cdylib 未受 staticlib 影响）
     → libvrcx_0_mobile.a（static，533 MB，iOS 会用同一条路径）
+iOS 的 Kotlin 代码本身能编译（见下）                                     ✅
 gradle 配置阶段 + Android 编译                                          ✅（cinterop 守卫有效）
 ```
+
+##### iOS Kotlin 代码的编译检查（不需要 Mac）
+
+`gradle.properties` 里有 `kotlin.native.ignoreDisabledTargets=true`，它让 Windows 上不支持的 Apple
+目标**静默跳过**——这也是为什么平时看不到任何 iOS 编译错误。用 `-P` 临时打开交叉编译，就能真的编译
+`iosMain` 那 21 个文件：
+
+```powershell
+gradlew.bat :composeApp:compileKotlinIosArm64 `
+    -Pkotlin.native.enableKlibsCrossCompilation=true
+gradlew.bat :composeApp:compileKotlinIosSimulatorArm64 `
+    -Pkotlin.native.enableKlibsCrossCompilation=true
+```
+
+实测结果（2026-11-18）：
+
+```
+compileKotlinIosArm64              BUILD SUCCESSFUL in 46s
+compileKotlinIosSimulatorArm64     BUILD SUCCESSFUL in 1m 3s
+```
+
+第一次跑就抓到一个真实错误，且只有 iOS 会报：
+
+```
+commonMain/kotlin/mobilecore/VrcxBackend.kt:15:6  Unresolved reference 'Volatile'
+```
+
+`@Volatile` 在 JVM 上是 `kotlin.jvm.Volatile`，Kotlin/Native 没有这个注解的等价物——多平台要写
+`kotlin.concurrent.Volatile`（Kotlin 1.9+）。改成后者后两个目标都通过。
+
+**注意**：这个 flag 只在命令行用 `-P` 临时加，**不要写进 `gradle.properties`**，否则 `check`、
+`allTests` 也会连带触发 iOS 任务，改变 CI 语义。
 
 也就是说：**除了"在 macOS 上把静态库编出来"这一步，其余已经做完并验证。**
 

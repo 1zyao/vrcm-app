@@ -1,5 +1,7 @@
 package io.github.vrcmteam.vrcm.mobilecore
 
+import kotlin.concurrent.Volatile
+
 /**
  * Which VRCX backend the app talks to.
  *
