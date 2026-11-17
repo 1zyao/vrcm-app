@@ -2,10 +2,12 @@ package io.github.vrcmteam.vrcm.presentation.screens.user
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -278,11 +280,24 @@ private fun StatusChainItem(raw: String) {
 private fun AvatarChangeImage(imageUrl: String?, label: String, modifier: Modifier) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         AppText(label, style = AppTheme.type.caption1, color = AppTheme.colors.secondaryLabel)
+        val frame = Modifier.widthIn(max = 64.dp).fillMaxWidth().aspectRatio(1f).clip(AppShapes.s)
         // 64dp 是时间线缩略图的最大边长；窄窗口按各自列宽缩小，文字不限制高度。
-        AImage(
-            imageData = imageUrl.orEmpty(),
-            modifier = Modifier.widthIn(max = 64.dp).fillMaxWidth().aspectRatio(1f).clip(AppShapes.s),
-        )
+        if (imageUrl.isNullOrBlank()) {
+            // The record itself has no image for this side: `previous_current_avatar_image_url` is
+            // empty in the feed row (measured on 2 of 8 rows). Drawing AImage with an empty string
+            // painted a bare grey square, which reads as "loading failed" rather than "not recorded".
+            AppSurface(modifier = frame, color = AppTheme.colors.fill) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    AppText(
+                        text = strings.friendActivityImageMissing,
+                        style = AppTheme.type.caption2,
+                        color = AppTheme.colors.secondaryLabel,
+                    )
+                }
+            }
+        } else {
+            AImage(imageData = imageUrl, modifier = frame)
+        }
     }
 }
 

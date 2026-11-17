@@ -839,6 +839,7 @@ sealed class LocaleStrings {
     open val friendActivityFilterProfile: String = "Status / bio changes"
     open val friendActivityFilterAvatar: String = "Avatar changes"
     open val friendActivityAvatarBefore: String = "Before"
+    open val friendActivityImageMissing: String = "no image"
     open val friendActivityAvatarAfter: String = "After"
     open val friendActivityFilterMeetup: String = "Meetups"
     open val friendActivityBack: String = "Back"
