@@ -1244,6 +1244,13 @@ sealed class LocaleStrings {
     open val settingsSyncTransferred: String = "Pulled / pushed"
     open val settingsSyncEnabled: String = "Enable sync"
 
+    open val settingsSyncPhase: String = "Engine state"
+    open val settingsSyncPending: String = "%count% waiting to push"
+    open val settingsSyncDeviceId: String = "This device"
+    open val settingsSyncBootstrap: String = "First sync"
+    open val settingsSyncBootstrapProgress: String = "%tables%/%total% tables · %rows%/%rowsTotal% rows"
+    open val settingsSyncDevices: String = "Other devices"
+
     open val settingsTableLimits: String = "Table limits"
     open val settingsTableLimitsHint: String = "How many rows each table keeps, and how far a search scans."
     open val settingsTableMaxSize: String = "Rows per table"

@@ -557,6 +557,44 @@ private fun SyncStatusSection() {
             },
         )
         SettingsRowDivider()
+        // The rest of the desktop status card: engine phase, this device, anything waiting to be
+        // pushed, and the first-run backfill while it runs.
+        AppRow(
+            title = strings.settingsSyncPhase,
+            value = status.phase.ifBlank { "-" },
+            subtitle = if (status.pendingOutbox > 0) {
+                strings.settingsSyncPending.replace("%count%", status.pendingOutbox.toString())
+            } else {
+                null
+            },
+        )
+        if (status.deviceId.isNotBlank()) {
+            SettingsRowDivider()
+            AppRow(
+                title = strings.settingsSyncDeviceId,
+                value = status.deviceId.take(8),
+            )
+        }
+        if (status.bootstrapRunning) {
+            SettingsRowDivider()
+            AppRow(
+                title = strings.settingsSyncBootstrap,
+                value = strings.settingsSyncBootstrapProgress
+                    .replace("%tables%", status.bootstrapTablesDone.toString())
+                    .replace("%total%", status.bootstrapTablesTotal.toString())
+                    .replace("%rows%", status.bootstrapRowsDone.toString())
+                    .replace("%rowsTotal%", status.bootstrapRowsTotal.toString()),
+            )
+        }
+        if (status.devices.isNotEmpty()) {
+            SettingsRowDivider()
+            AppRow(
+                title = strings.settingsSyncDevices,
+                value = status.devices.size.toString(),
+                subtitle = status.devices.joinToString(" · "),
+            )
+        }
+        SettingsRowDivider()
         // Editable: the target lives in the core's config, so this row opens a form instead of
         // showing a value the user has no way to change.
         AppRow(

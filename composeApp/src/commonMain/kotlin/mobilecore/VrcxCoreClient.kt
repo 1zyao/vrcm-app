@@ -703,6 +703,9 @@ suspend fun VrcxCoreClient.syncTestConnection(
     },
 )
 
+/** First-run bootstrap progress (`sync__bootstrap_progress`). */
+suspend fun VrcxCoreClient.syncBootstrapProgress(): JsonElement = invoke("sync__bootstrap_progress")
+
 /** The configured connection, without the password (only `hasPassword`). */
 suspend fun VrcxCoreClient.syncConnection(): JsonElement = invoke("sync__get_connection")
 
@@ -991,6 +994,7 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
 
 
 

@@ -1195,6 +1195,13 @@ override val notificationInviteRequest = "招待リクエスト"
     override val settingsSyncTransferred = "取得 / 送信"
     override val settingsSyncEnabled = "同期を有効化"
 
+    override val settingsSyncPhase = "エンジン状態"
+    override val settingsSyncPending = "%count% 件が送信待ち"
+    override val settingsSyncDeviceId = "この端末"
+    override val settingsSyncBootstrap = "初回同期"
+    override val settingsSyncBootstrapProgress = "%tables%/%total% テーブル · %rows%/%rowsTotal% 行"
+    override val settingsSyncDevices = "他の端末"
+
     override val settingsTableLimits = "テーブル上限"
     override val settingsTableLimitsHint = "各テーブルに保持する行数と、検索で走査する行数。"
     override val settingsTableMaxSize = "テーブルごとの保持行数"

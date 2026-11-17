@@ -1166,6 +1166,13 @@ override val notificationInviteRequest = "請求邀請"
     override val settingsSyncTransferred = "拉取 / 推送"
     override val settingsSyncEnabled = "啟用同步"
 
+    override val settingsSyncPhase = "引擎狀態"
+    override val settingsSyncPending = "%count% 筆待推送"
+    override val settingsSyncDeviceId = "本機"
+    override val settingsSyncBootstrap = "首次同步"
+    override val settingsSyncBootstrapProgress = "%tables%/%total% 張表 · %rows%/%rowsTotal% 列"
+    override val settingsSyncDevices = "其他裝置"
+
     override val settingsTableLimits = "資料表上限"
     override val settingsTableLimitsHint = "每張資料表保留多少列，以及搜尋掃描多少列。"
     override val settingsTableMaxSize = "每表保留列數"

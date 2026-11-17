@@ -1,6 +1,7 @@
 package io.github.vrcmteam.vrcm.service
 
 import io.github.vrcmteam.vrcm.mobilecore.VrcxCoreException
+import io.github.vrcmteam.vrcm.mobilecore.syncBootstrapProgress
 import io.github.vrcmteam.vrcm.mobilecore.syncConfigure
 import io.github.vrcmteam.vrcm.mobilecore.syncConnection
 import io.github.vrcmteam.vrcm.mobilecore.syncStatus
@@ -18,6 +19,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.longOrNull
 
 /**
  * What the settings screen shows about VRCX's shared-database sync.
@@ -42,6 +44,21 @@ data class SyncStatusVo(
     val lastPushed: Int = 0,
     val lastError: String? = null,
     val error: String? = null,
+    /** Engine phase, e.g. idle / running / bootstrap. */
+    val phase: String = "",
+    val pendingOutbox: Int = 0,
+    val deviceId: String = "",
+    val nextCycleInSecs: Int? = null,
+    val lastPushedOps: Int = 0,
+    val lastPulledOps: Int = 0,
+    /** Other devices sharing this database, as `name (role)`. */
+    val devices: List<String> = emptyList(),
+    /** First-run bootstrap, only meaningful while [bootstrapRunning]. */
+    val bootstrapRunning: Boolean = false,
+    val bootstrapTablesDone: Int = 0,
+    val bootstrapTablesTotal: Int = 0,
+    val bootstrapRowsDone: Long = 0,
+    val bootstrapRowsTotal: Long = 0,
 ) {
     val connected: Boolean get() = configured && error == null
 }
@@ -81,7 +98,21 @@ class SyncStatusService {
         _status.value = runCatching {
             val statusRoot = client.syncStatus().jsonObject
             val connection = runCatching { client.syncConnection().jsonObject }.getOrNull()
-            parse(statusRoot, connection)
+            val parsed = parse(statusRoot, connection)
+            // The first-run bootstrap only exists while it runs; asking for it always keeps the
+            // readout correct when a fresh database is being backfilled.
+            val progress = runCatching { client.syncBootstrapProgress().jsonObject }.getOrNull()
+            if (progress == null) {
+                parsed
+            } else {
+                parsed.copy(
+                    bootstrapRunning = progress.bool("running"),
+                    bootstrapTablesDone = progress.int("tablesDone"),
+                    bootstrapTablesTotal = progress.int("tablesTotal"),
+                    bootstrapRowsDone = progress.long("rowsDone"),
+                    bootstrapRowsTotal = progress.long("rowsTotal"),
+                )
+            }
         }.getOrElse { error ->
             _status.value.copy(
                 error = (error as? VrcxCoreException)?.message ?: error.message ?: "sync status failed",
@@ -236,6 +267,24 @@ class SyncStatusService {
             lastPushed = last?.int("pushed") ?: 0,
             lastError = last?.str("error")?.takeIf { it.isNotBlank() },
             error = statusRoot.str("error")?.takeIf { it.isNotBlank() },
+            phase = statusRoot.str("phase"),
+            pendingOutbox = statusRoot.int("pendingOutbox"),
+            deviceId = statusRoot.str("deviceId"),
+            nextCycleInSecs = (statusRoot["nextCycleInSecs"] as? JsonPrimitive)?.intOrNull,
+            lastPushedOps = statusRoot.int("lastPushedOps"),
+            lastPulledOps = statusRoot.int("lastPulledOps"),
+            devices = (statusRoot["remoteDevices"] as? JsonArray)
+                ?.mapNotNull { runCatching { it.jsonObject }.getOrNull() }
+                ?.mapNotNull { device ->
+                    val name = (device["deviceName"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+                    val role = (device["role"] as? JsonPrimitive)?.contentOrNull.orEmpty()
+                    when {
+                        name.isBlank() -> null
+                        role.isBlank() -> name
+                        else -> "$name ($role)"
+                    }
+                }
+                .orEmpty(),
         )
     }
 }
@@ -246,8 +295,15 @@ private fun JsonObject.str(key: String): String =
 private fun JsonObject.bool(key: String): Boolean =
     (this[key] as? JsonPrimitive)?.booleanOrNull ?: false
 
+private fun JsonObject.long(key: String): Long =
+    (this[key] as? JsonPrimitive)?.longOrNull ?: 0L
+
 private fun JsonObject.int(key: String): Int =
     (this[key] as? JsonPrimitive)?.intOrNull ?: 0
+
+
+
+
 
 
 
