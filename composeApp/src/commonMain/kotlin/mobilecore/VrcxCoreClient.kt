@@ -593,7 +593,31 @@ suspend fun VrcxCoreClient.searchWorldsGet(
     }
 ).toVrchatResult()
 
-/** Joins a group (`app__vrchat_group_join`). */
+/**
+ * A page of group members (`app__vrchat_group_members_get`).
+ *
+ * `sort` is one of `joinedAt:asc` / `joinedAt:desc` - the backend validates it.
+ */
+suspend fun VrcxCoreClient.groupMembersGet(
+    groupId: String,
+    n: Int = 20,
+    offset: Int = 0,
+    sort: String = "joinedAt:desc",
+    roleId: String = "",
+): VrchatResult = invoke(
+    "app__vrchat_group_members_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("groupId", groupId)
+            put("n", n)
+            put("offset", offset)
+            put("sort", sort)
+            if (roleId.isNotEmpty()) put("roleId", roleId)
+        })
+    }
+).toVrchatResult()
+
+/** A page of group members (`app__vrchat_group_members_get`). */
 suspend fun VrcxCoreClient.groupJoin(groupId: String): VrchatResult = invoke(
     "app__vrchat_group_join",
     buildJsonObject { put("input", buildJsonObject { put("groupId", groupId) }) }
@@ -692,6 +716,7 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
 
 
 

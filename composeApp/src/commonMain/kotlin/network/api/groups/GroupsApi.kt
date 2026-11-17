@@ -11,9 +11,11 @@ import io.github.vrcmteam.vrcm.network.api.groups.data.JoinGroupRequest
 import io.github.vrcmteam.vrcm.network.api.groups.data.LimitedGroup
 import io.github.vrcmteam.vrcm.network.api.groups.data.UpdateGroupMemberNotificationsRequest
 import io.github.vrcmteam.vrcm.network.api.groups.data.UpdateGroupRepresentationRequest
+import kotlinx.serialization.builtins.ListSerializer
 import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.groupJoin
 import io.github.vrcmteam.vrcm.mobilecore.groupLeave
+import io.github.vrcmteam.vrcm.mobilecore.groupMembersGet
 import io.github.vrcmteam.vrcm.mobilecore.groupGet
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import io.github.vrcmteam.vrcm.network.extensions.checkSuccess
@@ -86,13 +88,21 @@ class GroupsApi(private val client: HttpClient) {
         offset: Int = 0,
         sort: String? = null,
         roleId: String? = null,
-    ): List<GroupMember> =
-        client.get("$GROUPS_API_PREFIX/$groupId/members") {
-            parameter("n", n)
-            parameter("offset", offset)
-            sort?.let { parameter("sort", it) }
-            roleId?.let { parameter("roleId", it) }
-        }.checkSuccess()
+    ): List<GroupMember> {
+        // Served by the backend's group members command. Its `sort` is an enum with two values
+        // (`joinedAt:asc` / `joinedAt:desc`), so an unexpected value fails there with a readable
+        // error instead of returning an arbitrarily ordered page.
+        return CoreJson.decodeFromString(
+            ListSerializer(GroupMember.serializer()),
+            vrcxCoreClient().groupMembersGet(
+                groupId = groupId,
+                n = n,
+                offset = offset,
+                sort = sort ?: "joinedAt:desc",
+                roleId = roleId.orEmpty(),
+            ).bodyOrThrow(),
+        )
+    }
 
     suspend fun getGroupGalleryImages(
         groupId: String,
@@ -130,6 +140,8 @@ class GroupsApi(private val client: HttpClient) {
             .checkSuccess()
 
 }
+
+
 
 
 
