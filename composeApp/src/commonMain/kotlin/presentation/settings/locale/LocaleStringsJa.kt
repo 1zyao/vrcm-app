@@ -1193,6 +1193,7 @@ override val notificationInviteRequest = "招待リクエスト"
     override val settingsSyncServer = "サーバー"
     override val settingsSyncLastCycle = "最終同期"
     override val settingsSyncTransferred = "取得 / 送信"
+    override val settingsSyncEnabled = "同期を有効化"
     override val settingsSyncNow = "今すぐ同期"
 
     override val settingsSyncConfigure = "同期先"

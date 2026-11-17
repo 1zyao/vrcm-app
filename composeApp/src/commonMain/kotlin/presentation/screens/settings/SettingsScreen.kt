@@ -534,6 +534,16 @@ private fun SyncStatusSection() {
     LaunchedEffect(Unit) { service.refresh() }
 
     SettingsGroup(title = strings.settingsDataSync) {
+        // The switch is the save action, as on the desktop: flipping it writes the whole connection
+        // back with the new flag and restarts (or stops) the engine.
+        SettingsSwitchRow(
+            title = strings.settingsSyncEnabled,
+            description = null,
+            checked = status.enabled,
+        ) { next ->
+            scope.launch { service.setEnabled(next) }
+        }
+        SettingsRowDivider()
         AppRow(
             title = strings.settingsSyncStatus,
             value = when {

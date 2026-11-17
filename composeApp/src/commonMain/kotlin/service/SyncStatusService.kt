@@ -106,6 +106,7 @@ class SyncStatusService {
         allowPlaintext: Boolean,
         intervalSeconds: Int,
         collectorPriority: Int,
+        enabled: Boolean? = null,
     ) {
         if (_busy.value) return
         _busy.value = true
@@ -121,6 +122,7 @@ class SyncStatusService {
                 allowPlaintext = allowPlaintext,
                 intervalSeconds = intervalSeconds,
                 collectorPriority = collectorPriority,
+                enabled = enabled,
             )
             refresh()
         } catch (error: Throwable) {
@@ -130,6 +132,29 @@ class SyncStatusService {
         } finally {
             _busy.value = false
         }
+    }
+
+    /**
+     * Turns the engine on or off.
+     *
+     * The desktop's enable switch is a save: it sends the whole connection with the new flag. This
+     * does the same from the values already on screen, with an empty password so the stored one is
+     * kept.
+     */
+    suspend fun setEnabled(enabled: Boolean) {
+        val current = _status.value
+        configure(
+            host = current.host,
+            port = current.port,
+            user = current.user,
+            password = "",
+            database = current.database,
+            tlsVerify = current.tlsVerify,
+            allowPlaintext = current.allowPlaintext,
+            intervalSeconds = current.intervalSeconds,
+            collectorPriority = current.collectorPriority,
+            enabled = enabled,
+        )
     }
 
     /** Probes the given details without saving them, as the desktop page does before a save. */
@@ -223,6 +248,7 @@ private fun JsonObject.bool(key: String): Boolean =
 
 private fun JsonObject.int(key: String): Int =
     (this[key] as? JsonPrimitive)?.intOrNull ?: 0
+
 
 
 

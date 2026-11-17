@@ -1165,6 +1165,7 @@ override val notificationInviteRequest = "申请加入"
     override val settingsSyncServer = "服务器"
     override val settingsSyncLastCycle = "最近一次同步"
     override val settingsSyncTransferred = "拉取 / 推送"
+    override val settingsSyncEnabled = "启用同步"
     override val settingsSyncNow = "立即同步"
 
     override val settingsSyncConfigure = "同步目标"

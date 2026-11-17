@@ -1242,6 +1242,7 @@ sealed class LocaleStrings {
     open val settingsSyncServer: String = "Server"
     open val settingsSyncLastCycle: String = "Last sync"
     open val settingsSyncTransferred: String = "Pulled / pushed"
+    open val settingsSyncEnabled: String = "Enable sync"
     open val settingsSyncNow: String = "Sync now"
 
     open val settingsSyncConfigure: String = "Sync target"
