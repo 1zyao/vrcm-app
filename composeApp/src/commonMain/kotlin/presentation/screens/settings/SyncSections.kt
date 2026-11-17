@@ -22,11 +22,14 @@ import io.github.vrcmteam.vrcm.presentation.designsystem.AppButton
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppButtonStyle
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppProgressBar
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppRow
+import io.github.vrcmteam.vrcm.presentation.designsystem.AppShapes
+import io.github.vrcmteam.vrcm.presentation.designsystem.AppSurface
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppText
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppTheme
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppToggle
 import io.github.vrcmteam.vrcm.presentation.settings.locale.LocaleStrings
 import io.github.vrcmteam.vrcm.presentation.settings.locale.strings
+import io.github.vrcmteam.vrcm.service.SyncDeviceVo
 import io.github.vrcmteam.vrcm.service.SyncStatusService
 import io.github.vrcmteam.vrcm.service.SyncStatusVo
 import kotlinx.coroutines.launch
@@ -259,32 +262,89 @@ internal fun SyncStatusCard() {
         }
         if (status.devices.isNotEmpty()) {
             SettingsRowDivider()
-            MultilineRow(
-                title = s.settingsSyncDevices,
-                lines = status.devices.map { device ->
-                    buildString {
-                        append(device.name.ifBlank { device.deviceId.take(8) })
-                        if (device.deviceId == status.deviceId) {
-                            append(" · ${s.settingsSyncThisDeviceTag}")
-                        }
-                        if (device.ipAddress.isNotBlank()) append(" · ${device.ipAddress}")
-                        if (device.role.isNotBlank()) {
-                            append(" · ${device.role.uppercase()}·P${device.priority}")
-                        }
-                        if (device.appVersion.isNotBlank()) append(" · ${device.appVersion}")
-                        append(" · ")
-                        append(
-                            if (device.online) {
-                                s.settingsSyncOnline
-                            } else {
-                                s.settingsSyncSeenSeconds
-                                    .replace("%count%", device.seenSecondsAgo.toString())
-                            },
-                        )
-                    }
-                },
+            AppText(
+                text = s.settingsSyncDevices,
+                style = AppTheme.type.body,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+            )
+            status.devices.forEach { device ->
+                SettingsRowDivider()
+                DeviceEntry(device = device, selfDeviceId = status.deviceId, strings = s)
+            }
+        }
+    }
+}
+
+/**
+ * One peer, laid out the way the desktop lists it: identity on its own line, then the facts, then
+ * the state - instead of a single run-on sentence that made three devices look like a paragraph.
+ */
+@Composable
+private fun DeviceEntry(
+    device: SyncDeviceVo,
+    selfDeviceId: String,
+    strings: LocaleStrings,
+) {
+    val isSelf = device.deviceId == selfDeviceId
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            AppText(
+                text = device.name.ifBlank { device.deviceId.take(8) },
+                style = AppTheme.type.body,
+                maxLines = 1,
+                modifier = Modifier.weight(1f),
+            )
+            if (isSelf) Tag(strings.settingsSyncThisDeviceTag, AppTheme.colors.tint)
+            Tag(
+                text = if (device.online) strings.settingsSyncOnline else strings.settingsSyncOffline,
+                color = if (device.online) AppTheme.colors.success else AppTheme.colors.secondaryLabel,
             )
         }
+        AppText(
+            text = listOfNotNull(
+                device.ipAddress.takeIf { it.isNotBlank() },
+                if (device.role.isNotBlank()) {
+                    "${device.role.uppercase()}·P${device.priority}"
+                } else {
+                    null
+                },
+                device.appVersion.takeIf { it.isNotBlank() },
+            ).joinToString(" · "),
+            style = AppTheme.type.footnote,
+            color = AppTheme.colors.secondaryLabel,
+        )
+        if (!device.online && device.seenSecondsAgo > 0) {
+            AppText(
+                text = strings.settingsSyncSeenSeconds
+                    .replace("%count%", device.seenSecondsAgo.toString()),
+                style = AppTheme.type.footnote,
+                color = AppTheme.colors.secondaryLabel,
+            )
+        }
+    }
+}
+
+@Composable
+private fun Tag(text: String, color: androidx.compose.ui.graphics.Color) {
+    AppSurface(
+        shape = AppShapes.s,
+        color = color.copy(alpha = 0.14f),
+        contentColor = color,
+        modifier = Modifier.padding(horizontal = 0.dp),
+    ) {
+        AppText(
+            text = text,
+            style = AppTheme.type.caption2,
+            color = color,
+            modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+        )
     }
 }
 

@@ -1270,6 +1270,7 @@ sealed class LocaleStrings {
     open val settingsSyncThisDevice: String = "%id% (this device)"
     open val settingsSyncThisDeviceTag: String = "this device"
     open val settingsSyncOnline: String = "online"
+    open val settingsSyncOffline: String = "offline"
     open val settingsSyncSeenSeconds: String = "%count% s ago"
     open val settingsSyncOpsCount: String = "%count% ops"
     open val settingsSyncLastPushed: String = "Last upload"
