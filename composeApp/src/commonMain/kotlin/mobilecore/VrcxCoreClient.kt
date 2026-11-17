@@ -58,7 +58,12 @@ class VrcxCoreClient(
 
 class VrcxCoreException(val code: String, override val message: String) : Exception(message)
 
-/** Feed rows for a user. Args are camelCase — the Rust side renames them. */
+/**
+ * Feed rows for a user. Args are camelCase — the Rust side renames them.
+ *
+ * Used by the Android debug harness in `MainActivity` (androidMain), which is why it is not
+ * duplicated by [feedQuery]: that one is the timeline's paged/filtered read.
+ */
 suspend fun VrcxCoreClient.feedRows(
     userId: String,
     maxEntries: Int = 50,
@@ -887,6 +892,8 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
+
 
 
 
