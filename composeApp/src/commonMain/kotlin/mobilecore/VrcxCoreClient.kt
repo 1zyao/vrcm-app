@@ -519,15 +519,27 @@ suspend fun VrcxCoreClient.avatarStylesGet(): VrchatResult =
     invoke("app__vrchat_avatar_styles_get").toVrchatResult()
 
 /**
- * One avatar by id (`app__vrchat_avatar_get`).
+ * One avatar by id (`app__avatar_get`), the same command the desktop uses.
+ *
+ * The wire shape is the desktop's `AvatarGetInput`: `{"input": {"avatarId", "full", "fresh"}}`.
  *
  * This command name is ours, not cloud's: cloud's `app__avatar_get` is a local cache read, and its
  * per-avatar paths go through the list or gallery commands. The request behind it is the protocol's
  * own `avatar_get_input`, so the wire shape is still VRCX's.
  */
-suspend fun VrcxCoreClient.avatarGet(avatarId: String): VrchatResult = invoke(
-    "app__vrchat_avatar_get",
-    buildJsonObject { put("input", buildJsonObject { put("avatarId", avatarId) }) }
+suspend fun VrcxCoreClient.avatarGet(
+    avatarId: String,
+    full: Boolean = true,
+    fresh: Boolean = false,
+): VrchatResult = invoke(
+    "app__avatar_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("avatarId", avatarId)
+            put("full", full)
+            put("fresh", fresh)
+        })
+    }
 ).toVrchatResult()
 
 /**
