@@ -129,7 +129,7 @@ Get-ChildItem crates\mobile-host -Recurse -Include *.rs | Get-Content | Measure-
 换命令 + 删适配      19 文件 /  +697
 facade + 探针移除    17 文件 /  +473
 删 5 个死登录方法     17 文件 /  +399
-现在                18 文件 /  +397   （多出的 1 个文件是 composition/context.rs 重新计入）
+现在                16 文件 /  +381   （追平主线 54dec0076 后不变）
 ```
 
 削减过程中被移走或删除的东西：
@@ -141,3 +141,99 @@ facade + 探针移除    17 文件 /  +473
 - 探针命令行 → `crates/mobile-core/src/bin/probe.rs`
 - 5 个登录方法（错误的副本）→ 用主线 `auth_session.rs`
 - `/proc/self/cmdline` 猜包名 → `set_app_data_dir_override()`
+
+---
+
+## 八、iOS：现状、待办，以及一个已排除的误解
+
+### 现状
+
+```
+composeApp/build.gradle.kts   iosArm64() / iosSimulatorArm64()   已声明
+composeApp/src/iosMain/       21 个 .kt                            有源集
+iosApp/                       完整的 Xcode 工程 + Info.plist        有
+
+但：
+  mobilecore/VrcxCoreBridge.kt (iosMain)   = error("The VRCX-0 core runs inside the phone app only")
+  isVrcxCoreReady()                        = false
+  crates/mobile-core 的 FFI                 只有 JNI，没有 C ABI
+  crate-type                                cdylib（iOS 需要 staticlib）
+  build-core.ps1                            只认 Android 两个 ABI
+```
+
+结论：**iOS 上跑的是没有核心的形态**，所有数据入口直接抛错。这不是遗漏，是还没做。
+
+### 为什么原版 VRCM 不需要这些
+
+`5b30797`（加载 core）之前的 iOS 侧没有任何桥接代码，因为原版**根本没有原生核心**：所有平台共用
+`commonMain/kotlin/network/` 里的 Ktor 客户端直接打 `api.vrchat.cloud`。iOS 编的是同一套 Kotlin，
+不需要 JNI、也不需要 C ABI。
+
+改造后数据来自进程内的 Rust 核心（本地库 + 回环命令总线），才有"怎么在 iOS 上启动它"这个问题。
+
+### 需要做的四件事
+
+```
+Rust 侧
+  1. mobile-core 加一个 extern "C" 入口（职责等同 Android 的 JNI 那个）
+  2. crate-type 加 staticlib
+  3. 在 macOS 上编 aarch64-apple-ios → xcframework   ← 唯一硬门槛，必须 macOS + Xcode
+
+Kotlin 侧
+  4. iosMain 的 VrcxCoreBridge 换成真实实现 + cinterop 定义（约 30 行）
+
+iOS 工程
+  5. Info.plist 加 NSAllowsLocalNetworking           ← ATS 默认禁止 http://127.0.0.1
+  6. app 进后台/回前台的重连处理（iOS 没有前台服务保活）
+```
+
+**只需要一个 C 函数**，因为 core 的协议是回环 HTTP：启动一次之后，`VrcxCoreClient` 里所有命令
+调用都走 `127.0.0.1`，`commonMain` 一行都不用改。
+
+### 已排除的误解：iOS 会不会"不能回环"
+
+不会。我们的拓扑是**进程内自连**：
+
+```
+VRCM.app（一个进程）
+  ├─ Rust 核心 bind 127.0.0.1:<随机端口>
+  └─ Kotlin 客户端连同一个端口
+```
+
+既没跨 app，也没碰系统服务，沙箱不拦。
+
+容易被拿来类比的 SideStore 是**另一回事**。它的 README 写得很明确：
+
+> SideStore resolves apps with your personal development certificate, and then uses a
+> **specially designed VPN** in order to trick iOS into installing them.
+>
+> By leveraging a custom-built App Store app with additional entitlements (**LocalDevVPN**) to create
+> the VPN tunnel, it allows SideStore to take advantage of **Jitterbug**'s **loopback method** without
+> requiring a paid developer account.
+>
+> **Minimuxer** is a lockdown muxer that can run inside iOS's sandbox. It replicates Apple's **usbmuxd**
+> protocol to "discover" devices to interface with LocalDevVPN on-device.
+
+关键差别：
+
+| | SideStore | 我们 |
+|---|---|---|
+| 连的是什么 | 设备自己的 **usbmuxd / lockdown 系统服务** | 自己进程里刚起的 listener |
+| 沙箱是否禁止 | 是 → 需要 VPN + 特殊 entitlements | 否 |
+| 需要的组件 | NetworkExtension、LocalDevVPN、minimuxer | 无 |
+
+所以 iOS 上**不需要** VPN、NetworkExtension 或付费开发者账号，只需要 ATS 放行本地网络
+（`NSAllowsLocalNetworking`，比 `NSAllowsArbitraryLoads` 安全，只放行本地）。
+
+### 需要留意的一个真风险
+
+如果将来把核心放进 **App Extension**（分享扩展、后台刷新），那就变成跨进程，会和 SideStore 撞同一类
+沙箱限制。届时才需要考虑 App Groups（只解决数据）或 NetworkExtension（解决 socket）。
+
+### 验收顺序（有 macOS 之后）
+
+1. 在 iOS app 里起一个 http server 监听 `127.0.0.1`，再自己请求它 —— 先证明回环成立
+2. 编出 `libvrcx_0_mobile.a`，xcframework 进 Xcode
+3. `vrcx_core_start(dataDir, deviceName)` 返回 `{port, token}`，Kotlin 侧能连通
+4. 调一条命令（`sync__status`）确认整条链路
+5. 再补 iOS 特有权限（相册、剪贴板、Keychain）
