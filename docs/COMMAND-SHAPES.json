@@ -1,0 +1,494 @@
+{
+  "commands": [
+    {
+      "cmd": "app__backend_runtime_combined_snapshot_get",
+      "envelope": "flat",
+      "input": "serde_json::value::Value",
+      "inputType": "Value",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__config_list_values",
+      "envelope": "flat",
+      "input": "serde_json::value::Value",
+      "inputType": "Value",
+      "output": "alloc::vec::Vec<vrcx_0_contracts::profile_config::ConfigReadEntry>",
+      "outputType": "ConfigReadEntry>"
+    },
+    {
+      "cmd": "app__config_remove_value",
+      "envelope": "flat",
+      "input": "vrcx_0_mobile_host::ConfigRemoveArgs",
+      "inputType": "ConfigRemoveArgs",
+      "output": "i64",
+      "outputType": "i64"
+    },
+    {
+      "cmd": "app__config_set_values",
+      "envelope": "flat",
+      "input": "serde_json::value::Value",
+      "inputType": "Value",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__debug_emit_event",
+      "envelope": "flat",
+      "input": "vrcx_0_mobile_host::DebugEmitInput",
+      "inputType": "DebugEmitInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__favorite_details_hydrate",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_application::favorites::favorite_details_hydrate::FavoriteDetailsHydrateInput>",
+      "inputType": "FavoriteDetailsHydrateInput",
+      "output": "vrcx_0_application::favorites::favorite_details_hydrate::FavoriteDetailsHydrateOutput",
+      "outputType": "FavoriteDetailsHydrateOutput"
+    },
+    {
+      "cmd": "app__favorite_list",
+      "envelope": "flat",
+      "input": "vrcx_0_mobile_host::FavoriteListArgs",
+      "inputType": "FavoriteListArgs",
+      "output": "alloc::vec::Vec<vrcx_0_contracts::favorites::FavoriteRow>",
+      "outputType": "FavoriteRow>"
+    },
+    {
+      "cmd": "app__feed_rows_query",
+      "envelope": "query",
+      "input": "vrcx_0_mobile_host::QueryArgs<vrcx_0_contracts::feed::FeedRowsQueryInput>",
+      "inputType": "FeedRowsQueryInput",
+      "output": "alloc::vec::Vec<vrcx_0_contracts::feed::FeedRowOutput>",
+      "outputType": "FeedRowOutput>"
+    },
+    {
+      "cmd": "app__file_metadata_get",
+      "envelope": "flat",
+      "input": "vrcx_0_mobile_host::FileMetadataGetArgs",
+      "inputType": "FileMetadataGetArgs",
+      "output": "core::option::Option<vrcx_0_contracts::entity_cache::FileMetadataOutput>",
+      "outputType": "FileMetadataOutput>"
+    },
+    {
+      "cmd": "app__game_log_sessions_query",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_application_game::game_log::sessions_view::GameLogSessionsQueryInput>",
+      "inputType": "GameLogSessionsQueryInput",
+      "output": "alloc::vec::Vec<vrcx_0_application_game::game_log::sessions_view::GameLogSessionDto>",
+      "outputType": "GameLogSessionDto>"
+    },
+    {
+      "cmd": "app__local_moderation_list",
+      "envelope": "flat",
+      "input": "vrcx_0_mobile_host::LocalModerationListArgs",
+      "inputType": "LocalModerationListArgs",
+      "output": "alloc::vec::Vec<vrcx_0_contracts::local_moderation::LocalModerationOutput>",
+      "outputType": "LocalModerationOutput>"
+    },
+    {
+      "cmd": "app__notification_list_query",
+      "envelope": "query",
+      "input": "vrcx_0_mobile_host::QueryArgs<vrcx_0_contracts::notifications::NotificationListQueryInput>",
+      "inputType": "NotificationListQueryInput",
+      "output": "alloc::vec::Vec<vrcx_0_contracts::notifications::NotificationListItemOutput>",
+      "outputType": "NotificationListItemOutput>"
+    },
+    {
+      "cmd": "app__notification_mark_seen_batch",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_application::social::notification_actions::NotificationMarkSeenBatchInput>",
+      "inputType": "NotificationMarkSeenBatchInput",
+      "output": "vrcx_0_application::social::notification_actions::NotificationMarkSeenBatchResult",
+      "outputType": "NotificationMarkSeenBatchResult"
+    },
+    {
+      "cmd": "app__social_favorites_baseline_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_application_realtime::social_baseline::types::SocialFavoritesBaselineInput>",
+      "inputType": "SocialFavoritesBaselineInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__social_friend_roster_baseline_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_application_realtime::social_baseline::types::SocialFriendRosterBaselineInput>",
+      "inputType": "SocialFriendRosterBaselineInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_auth_auto_login_start",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_application::auth::login_session::auto_login::AutoLoginStartInput>",
+      "inputType": "AutoLoginStartInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_auth_current_user_get",
+      "envelope": "flat",
+      "input": "serde_json::value::Value",
+      "inputType": "Value",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_auth_file_analysis_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::FileAnalysisArgs>",
+      "inputType": "FileAnalysisArgs",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_auth_saved_snapshot_get",
+      "envelope": "flat",
+      "input": "serde_json::value::Value",
+      "inputType": "Value",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_auth_session_cancel",
+      "envelope": "flat",
+      "input": "vrcx_0_application::auth::login_session::runtime::LoginSessionCancelInput",
+      "inputType": "LoginSessionCancelInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_auth_session_end",
+      "envelope": "flat",
+      "input": "vrcx_0_application::auth::login_session::runtime::LoginSessionEnd",
+      "inputType": "LoginSessionEnd",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_auth_session_respond",
+      "envelope": "flat",
+      "input": "vrcx_0_application::auth::login_session::runtime::LoginSessionRespondInput",
+      "inputType": "LoginSessionRespondInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_auth_session_start",
+      "envelope": "flat",
+      "input": "vrcx_0_application::auth::login_session::runtime::LoginSessionStartInput",
+      "inputType": "LoginSessionStartInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_avatar_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::AvatarGetArgs>",
+      "inputType": "AvatarGetArgs",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_avatar_list_by_user_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::AvatarListByUserInput>",
+      "inputType": "AvatarListByUserInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_avatar_select",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::AvatarGetArgs>",
+      "inputType": "AvatarGetArgs",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_avatar_select_fallback",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::AvatarGetArgs>",
+      "inputType": "AvatarGetArgs",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_avatar_styles_get",
+      "envelope": "flat",
+      "input": "serde_json::value::Value",
+      "inputType": "Value",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_economy_balance_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::EconomyBalanceArgs>",
+      "inputType": "EconomyBalanceArgs",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_favorite_add",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::FavoriteAddInput>",
+      "inputType": "FavoriteAddInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_favorite_delete",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::FavoriteDeleteInput>",
+      "inputType": "FavoriteDeleteInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_favorite_groups_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::FavoriteGroupsInput>",
+      "inputType": "FavoriteGroupsInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_favorite_worlds_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::FavoriteWorldsInput>",
+      "inputType": "FavoriteWorldsInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_friend_status_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::FriendUserInput>",
+      "inputType": "FriendUserInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_group_gallery_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_application::social::groups::types::VrchatGroupGalleryInput>",
+      "inputType": "VrchatGroupGalleryInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_group_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::GroupProfileInput>",
+      "inputType": "GroupProfileInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_group_join",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_application::social::groups::types::VrchatGroupIdInput>",
+      "inputType": "VrchatGroupIdInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_group_leave",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_application::social::groups::types::VrchatGroupIdInput>",
+      "inputType": "VrchatGroupIdInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_group_members_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_application::social::groups::types::VrchatGroupMembersInput>",
+      "inputType": "VrchatGroupMembersInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_group_posts_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_application::social::groups::types::VrchatGroupPagedInput>",
+      "inputType": "VrchatGroupPagedInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_group_user_groups_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::GroupUserGroupsInput>",
+      "inputType": "GroupUserGroupsInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_group_user_instances_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_application::social::groups::types::VrchatGroupUserGroupsInput>",
+      "inputType": "VrchatGroupUserGroupsInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_instance_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::InstanceIdentityInput>",
+      "inputType": "InstanceIdentityInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_media_files_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::MediaFilesArgs>",
+      "inputType": "MediaFilesArgs",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_media_inventory_items_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_contracts::vrchat_requests::InventoryListParams>",
+      "inputType": "InventoryListParams",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_media_print_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::PrintGetArgs>",
+      "inputType": "PrintGetArgs",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_media_prints_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::PrintsArgs>",
+      "inputType": "PrintsArgs",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_search_groups_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::SearchGroupsInput>",
+      "inputType": "SearchGroupsInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_search_users_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::SearchUsersInput>",
+      "inputType": "SearchUsersInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_search_worlds_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::SearchWorldsInput>",
+      "inputType": "SearchWorldsInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_user_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::UserGetInput>",
+      "inputType": "UserGetInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_user_profile_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::UserProfileInput>",
+      "inputType": "UserProfileInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__vrchat_user_represented_group_get",
+      "envelope": "input",
+      "input": "vrcx_0_mobile_host::InputArgs<vrcx_0_mobile_host::GroupUserGroupsInput>",
+      "inputType": "GroupUserGroupsInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__web_execute",
+      "envelope": "flat",
+      "input": "vrcx_0_mobile_host::WebExecuteInput",
+      "inputType": "WebExecuteInput",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "app__world_get",
+      "envelope": "flat",
+      "input": "vrcx_0_mobile_host::WorldGetArgs",
+      "inputType": "WorldGetArgs",
+      "output": "vrcx_0_contracts::vrchat_api::VrchatResponse",
+      "outputType": "VrchatResponse"
+    },
+    {
+      "cmd": "sync__bootstrap_progress",
+      "envelope": "flat",
+      "input": "serde_json::value::Value",
+      "inputType": "Value",
+      "output": "vrcx_0_contracts::sync::SyncBootstrapProgress",
+      "outputType": "SyncBootstrapProgress"
+    },
+    {
+      "cmd": "sync__configure",
+      "envelope": "flat",
+      "input": "serde_json::value::Value",
+      "inputType": "Value",
+      "output": "serde_json::value::Value",
+      "outputType": "Value"
+    },
+    {
+      "cmd": "sync__get_connection",
+      "envelope": "flat",
+      "input": "serde_json::value::Value",
+      "inputType": "Value",
+      "output": "vrcx_0_contracts::sync::SyncConnectionFields",
+      "outputType": "SyncConnectionFields"
+    },
+    {
+      "cmd": "sync__status",
+      "envelope": "flat",
+      "input": "serde_json::value::Value",
+      "inputType": "Value",
+      "output": "vrcx_0_contracts::sync::SyncStatusSnapshot",
+      "outputType": "SyncStatusSnapshot"
+    },
+    {
+      "cmd": "sync__test_connection",
+      "envelope": "flat",
+      "input": "vrcx_0_mobile_host::SyncTestConnectionArgs",
+      "inputType": "SyncTestConnectionArgs",
+      "output": "vrcx_0_contracts::sync::SyncConnectionTestResult",
+      "outputType": "SyncConnectionTestResult"
+    },
+    {
+      "cmd": "sync__trigger_now",
+      "envelope": "flat",
+      "input": "serde_json::value::Value",
+      "inputType": "Value",
+      "output": "vrcx_0_contracts::sync::SyncStatusSnapshot",
+      "outputType": "SyncStatusSnapshot"
+    }
+  ],
+  "total": 61,
+  "withSignature": 61
+}
