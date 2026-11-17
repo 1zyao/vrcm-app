@@ -15,6 +15,7 @@ import kotlinx.serialization.builtins.ListSerializer
 import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.groupJoin
 import io.github.vrcmteam.vrcm.mobilecore.groupLeave
+import io.github.vrcmteam.vrcm.mobilecore.groupGalleryGet
 import io.github.vrcmteam.vrcm.mobilecore.groupPostsGet
 import io.github.vrcmteam.vrcm.mobilecore.groupUserInstancesGet
 import io.github.vrcmteam.vrcm.mobilecore.groupMembersGet
@@ -112,12 +113,15 @@ class GroupsApi(private val client: HttpClient) {
         n: Int = 20,
         offset: Int = 0,
         approved: Boolean? = null,
-    ): List<GroupGalleryImage> =
-        client.get("$GROUPS_API_PREFIX/$groupId/galleries/$groupGalleryId") {
-            parameter("n", n)
-            parameter("offset", offset)
-            approved?.let { parameter("approved", it) }
-        }.checkSuccess()
+    ): List<GroupGalleryImage> {
+        // Served by the backend, which answers a plain array of image records. It has no `approved`
+        // filter, so that parameter narrows here rather than being silently dropped.
+        val rows = CoreJson.decodeFromString(
+            ListSerializer(GroupGalleryImage.serializer()),
+            vrcxCoreClient().groupGalleryGet(groupId, groupGalleryId, n, offset).bodyOrThrow(),
+        )
+        return if (approved == null) rows else rows.filter { it.approved == approved }
+    }
 
     suspend fun getGroupPosts(
         groupId: String,
@@ -151,6 +155,7 @@ class GroupsApi(private val client: HttpClient) {
         )
 
 }
+
 
 
 

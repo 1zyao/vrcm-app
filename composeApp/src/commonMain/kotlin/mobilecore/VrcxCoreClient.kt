@@ -593,6 +593,28 @@ suspend fun VrcxCoreClient.searchWorldsGet(
     }
 ).toVrchatResult()
 
+/**
+ * The images of one group gallery (`app__vrchat_group_gallery_get`).
+ *
+ * The backend answers a plain array of image records; there is no `approved` filter on it.
+ */
+suspend fun VrcxCoreClient.groupGalleryGet(
+    groupId: String,
+    galleryId: String,
+    n: Int = 20,
+    offset: Int = 0,
+): VrchatResult = invoke(
+    "app__vrchat_group_gallery_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("groupId", groupId)
+            put("galleryId", galleryId)
+            put("n", n)
+            put("offset", offset)
+        })
+    }
+).toVrchatResult()
+
 /** A page of group posts (`app__vrchat_group_posts_get`). */
 suspend fun VrcxCoreClient.groupPostsGet(
     groupId: String,
