@@ -493,6 +493,20 @@ suspend fun VrcxCoreClient.notificationMarkSeenBatch(
 )
 
 /**
+ * VRCX's shared-database sync (`sync__*` commands).
+ *
+ * The names are `sync__`, not `app__`: cloud registers them that way and its frontend calls them by
+ * that name, so the phone keeps the same surface.
+ */
+suspend fun VrcxCoreClient.syncStatus(): JsonElement = invoke("sync__status")
+
+/** The configured connection, without the password (only `hasPassword`). */
+suspend fun VrcxCoreClient.syncConnection(): JsonElement = invoke("sync__get_connection")
+
+/** Runs one sync cycle now and answers with the resulting status. */
+suspend fun VrcxCoreClient.syncTriggerNow(): JsonElement = invoke("sync__trigger_now")
+
+/**
  * File analysis for one asset variant (`app__vrchat_auth_file_analysis_get`).
  *
  * Measured against a real world asset: `variant = "standalonewindows"` answers 404 while the

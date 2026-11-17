@@ -1185,7 +1185,17 @@ override val notificationInviteRequest = "招待リクエスト"
         "%removed% 人分を消去しました。%failed% 人分は消去できませんでした。"
     override val playerModerationCleanupFailure =
         "選択した記録がすべて消去されたことを確認できません。更新して現在の状態を確認してください。"
+
+    override val settingsDataSync = "データ同期"
+    override val settingsSyncStatus = "同期状態"
+    override val settingsSyncConnected = "接続済み"
+    override val settingsSyncNotConfigured = "未設定"
+    override val settingsSyncServer = "サーバー"
+    override val settingsSyncLastCycle = "最終同期"
+    override val settingsSyncTransferred = "取得 / 送信"
+    override val settingsSyncNow = "今すぐ同期"
 }
+
 
 
 

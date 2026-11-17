@@ -1156,7 +1156,17 @@ override val notificationInviteRequest = "請求邀請"
     override val playerModerationCleanupNoRecords = "此類型已無記錄。"
     override val playerModerationCleanupPartialFailure = "已清除 %removed% 個目標，另有 %failed% 個目標清除失敗。"
     override val playerModerationCleanupFailure = "無法確認所選記錄已全部清除，請重新整理以查看目前狀態。"
+
+    override val settingsDataSync = "資料同步"
+    override val settingsSyncStatus = "同步狀態"
+    override val settingsSyncConnected = "已連線"
+    override val settingsSyncNotConfigured = "未設定"
+    override val settingsSyncServer = "伺服器"
+    override val settingsSyncLastCycle = "最近一次同步"
+    override val settingsSyncTransferred = "拉取 / 推送"
+    override val settingsSyncNow = "立即同步"
 }
+
 
 
 

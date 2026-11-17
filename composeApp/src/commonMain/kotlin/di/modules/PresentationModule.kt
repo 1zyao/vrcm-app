@@ -106,6 +106,9 @@ val presentationModule: Module = module {
     // Single so the Application side and the settings UI share one instance, and with it the
     // background monitoring report; it only holds the settings DAO and the theme color list.
     single { SettingsModel(get(), getAll()) }
+    // One holder for the sync status, so the settings screen sees the same numbers wherever it is
+    // reached from (and a triggered cycle updates every observer).
+    single { io.github.vrcmteam.vrcm.service.SyncStatusService() }
     viewModelOf(::AuthScreenModel)
     viewModel { FriendActivityTimelineModel(get<FriendActivityService>()) }
     viewModelOf(::HomeScreenModel)

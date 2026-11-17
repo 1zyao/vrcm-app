@@ -1233,6 +1233,16 @@ sealed class LocaleStrings {
         "Cleared %removed% targets; %failed% could not be cleared."
     open val playerModerationCleanupFailure: String =
         "Could not confirm that all selected records were cleared. Refresh to check the current state."
+
+    // 数据同步（VRCX 的共享数据库同步）
+    open val settingsDataSync: String = "Data sync"
+    open val settingsSyncStatus: String = "Sync status"
+    open val settingsSyncConnected: String = "Connected"
+    open val settingsSyncNotConfigured: String = "Not configured"
+    open val settingsSyncServer: String = "Server"
+    open val settingsSyncLastCycle: String = "Last sync"
+    open val settingsSyncTransferred: String = "Pulled / pushed"
+    open val settingsSyncNow: String = "Sync now"
 }
 
 val strings: LocaleStrings
@@ -1246,5 +1256,6 @@ val strings: LocaleStrings
             else -> LocaleStringsEn
         }
     }
+
 
 

@@ -1,5 +1,6 @@
 package io.github.vrcmteam.vrcm.presentation.screens.settings
 
+import io.github.vrcmteam.vrcm.service.SyncStatusService
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -516,6 +517,60 @@ private fun FriendFilterSections() {
     }
 }
 
+/**
+ * VRCX's shared-database sync, as the core reports it.
+ *
+ * Every number here comes from the backend's own cycle history, so this is a readout of what the
+ * engine did rather than a local guess - which is the point: the phone either reaches the shared
+ * database or it says why it cannot.
+ */
+@Composable
+private fun SyncStatusSection() {
+    val service = koinInject<SyncStatusService>()
+    val status by service.status.collectAsState()
+    val busy by service.busy.collectAsState()
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) { service.refresh() }
+
+    SettingsGroup(title = strings.settingsDataSync) {
+        AppRow(
+            title = strings.settingsSyncStatus,
+            value = when {
+                !status.configured -> strings.settingsSyncNotConfigured
+                status.error != null -> status.error
+                else -> strings.settingsSyncConnected
+            },
+            trailing = {
+                AnimatedVisibility(busy) { AppActivityIndicator(Modifier.size(20.dp)) }
+            },
+        )
+        SettingsRowDivider()
+        AppRow(
+            title = strings.settingsSyncServer,
+            value = if (status.host.isBlank()) "-"
+            else "${status.host}:${status.port} / ${status.database}",
+        )
+        SettingsRowDivider()
+        AppRow(
+            title = strings.settingsSyncLastCycle,
+            value = status.lastCycleAt.ifBlank { "-" },
+        )
+        SettingsRowDivider()
+        AppRow(
+            title = strings.settingsSyncTransferred,
+            value = "${status.lastPulled} / ${status.lastPushed}",
+            subtitle = status.lastError,
+        )
+        SettingsRowDivider()
+        AppRow(
+            title = strings.settingsSyncNow,
+            enabled = !busy && status.configured,
+            chevron = true,
+            onClick = { scope.launch { service.triggerNow() } },
+        )
+    }
+}
+
 /** 剪贴板隐私、政策与本地缓存。 */
 @Composable
 private fun PrivacyDataSections(platform: AppPlatform) {
@@ -540,6 +595,7 @@ private fun PrivacyDataSections(platform: AppPlatform) {
     val decorationTemplateCacheDao = koinInject<DecorationTemplateCacheDao>()
     val meetupCardAssetStore = koinInject<MeetupCardAssetStore>()
     val scope = rememberCoroutineScope()
+    SyncStatusSection()
     Column {
         SettingsGroup {
             val diskCache = imageLoader.diskCache
@@ -1003,3 +1059,4 @@ private fun FriendOverrideRow(
         }
     }
 }
+
