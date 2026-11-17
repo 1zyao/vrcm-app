@@ -426,6 +426,43 @@ suspend fun VrcxCoreClient.worldGet(
     }
 ).toVrchatResult()
 
+/**
+ * The credit balance (`app__vrchat_economy_balance_get`).
+ *
+ * The name is ours - cloud has no economy command - over the protocol's own `balance_get_input`.
+ */
+suspend fun VrcxCoreClient.economyBalanceGet(userId: String): VrchatResult = invoke(
+    "app__vrchat_economy_balance_get",
+    buildJsonObject { put("input", buildJsonObject { put("userId", userId) }) }
+).toVrchatResult()
+
+/**
+ * A page of the signed-in account's inventory (`app__vrchat_media_inventory_items_get`).
+ *
+ * Cloud registers this name itself; the phone simply had not registered it. `types` is the
+ * comma-free item type value (e.g. `bundle`), and the backend sorts by newest-updated only.
+ */
+suspend fun VrcxCoreClient.inventoryGet(
+    n: Int = 100,
+    offset: Int = 0,
+    types: String? = null,
+): VrchatResult = invoke(
+    "app__vrchat_media_inventory_items_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("n", n)
+            put("offset", offset)
+            if (types != null) put("types", types)
+        })
+    }
+).toVrchatResult()
+
+/** One print by id (`app__vrchat_print_get`). */
+suspend fun VrcxCoreClient.printGet(printId: String): VrchatResult = invoke(
+    "app__vrchat_print_get",
+    buildJsonObject { put("input", buildJsonObject { put("printId", printId) }) }
+).toVrchatResult()
+
 /** Wears an avatar (`app__vrchat_avatar_select`). */
 suspend fun VrcxCoreClient.avatarSelect(avatarId: String): VrchatResult = invoke(
     "app__vrchat_avatar_select",
@@ -816,6 +853,8 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
+
 
 
 
