@@ -92,7 +92,9 @@ internal fun SyncConnectionSection() {
         SettingsRowDivider()
         AppRow(
             title = s.settingsSyncPriority,
-            value = fractionOrDash(status.collectorPriority),
+            // 0 is a valid priority - the 24/7 server is supposed to sit at 0 - so this row must not
+            // treat it as "not read". Only the interval uses the dash, because 0 is meaningless there.
+            value = status.collectorPriority.toString(),
             enabled = !busy,
             chevron = true,
             onClick = { showConfigure = true },
