@@ -458,6 +458,29 @@ suspend fun VrcxCoreClient.inventoryGet(
 ).toVrchatResult()
 
 /**
+ * A page of the signed-in account's media files (`app__vrchat_media_files_get`).
+ *
+ * Mirrors cloud's nested input shape: `{"input":{"params":{…}}}`. `tag` is one of the backend
+ * enum's lowercase values (`gallery`, `avatargallery`, `icon`, `emoji`, `emojianimated`, `sticker`).
+ */
+suspend fun VrcxCoreClient.mediaFilesGet(
+    n: Int = 60,
+    offset: Int = 0,
+    tag: String? = null,
+): VrchatResult = invoke(
+    "app__vrchat_media_files_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("params", buildJsonObject {
+                put("n", n)
+                put("offset", offset)
+                if (tag != null) put("tag", tag)
+            })
+        })
+    }
+).toVrchatResult()
+
+/**
  * The prints of one user (`app__vrchat_media_prints_get`).
  *
  * The backend's request takes only `n` - there is no offset - so paging asks for more and drops what
@@ -864,6 +887,7 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
 
 
 

@@ -5,7 +5,11 @@ import io.github.vrcmteam.vrcm.network.api.attributes.FILE_API_PREFIX
 import io.github.vrcmteam.vrcm.network.api.files.data.FileData
 import io.github.vrcmteam.vrcm.network.api.files.data.FileDetailsData
 import io.github.vrcmteam.vrcm.network.api.files.data.FileResponse
+import io.github.vrcmteam.vrcm.mobilecore.CoreJson
+import io.github.vrcmteam.vrcm.mobilecore.mediaFilesGet
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import io.github.vrcmteam.vrcm.network.api.files.data.FileTagType
+import kotlinx.serialization.builtins.ListSerializer
 import io.github.vrcmteam.vrcm.network.extensions.checkSuccess
 import io.github.vrcmteam.vrcm.network.extensions.checkSuccessResult
 import io.ktor.client.*
@@ -75,12 +79,33 @@ class FileApi(private val client: HttpClient) {
         userId: String? = null,
         n: Int = 60,
         offset: Int = 0
-    ) = client.get(FILES_API_PREFIX) {
-        tag?.let { parameter("tag", it.value) }
-        userId?.let { parameter("userId", it) }
-        parameter("n", n.coerceIn(1, 100))
-        parameter("offset", offset.coerceAtLeast(0))
-    }.checkSuccess<List<FileData>>()
+    ): List<FileData> {
+        // Served by the backend. Two of this API's parameters have no equivalent there, and both are
+        // rejected instead of dropped: `userId` (the command lists the signed-in account's files)
+        // and the `worldimage` / `print` tags, which are not in the backend's tag enum - prints have
+        // their own list command, which is why `print` is not a file tag there.
+        require(userId == null) { "the media files command lists the signed-in account only" }
+        val backendTag = tag?.let {
+            when (it) {
+                FileTagType.Icon -> "icon"
+                FileTagType.Emoji -> "emoji"
+                FileTagType.Sticker -> "sticker"
+                FileTagType.Gallery -> "gallery"
+                FileTagType.AvatarImage -> "avatargallery"
+                FileTagType.WorldImage, FileTagType.Print ->
+                    throw IllegalArgumentException("the media files command has no ${it.value} tag")
+            }
+        }
+
+        return CoreJson.decodeFromString(
+            ListSerializer(FileData.serializer()),
+            vrcxCoreClient().mediaFilesGet(
+                n = n.coerceIn(1, 100),
+                offset = offset.coerceAtLeast(0),
+                tag = backendTag,
+            ).bodyOrThrow(),
+        )
+    }
 
     /** 获取指定模型关联的只读 Gallery 文件。 */
     suspend fun getAvatarGalleryFiles(
@@ -271,3 +296,5 @@ private const val ANIMATION_STYLE_SUFFIX = "animationStyle"
 private const val FRAMES_SUFFIX = "frames"
 private const val FPS_SUFFIX = "fps"
 private const val LOOP_STYLE_SUFFIX = "loopStyle"
+
+
