@@ -604,6 +604,74 @@ suspend fun VrcxCoreClient.notificationMarkSeenBatch(
  */
 suspend fun VrcxCoreClient.syncStatus(): JsonElement = invoke("sync__status")
 
+/**
+ * Writes the sync configuration and restarts the engine (`sync__configure`).
+ *
+ * The wire shape is cloud's: flat `enabled` / `intervalSec` / `connection` on the args, not wrapped
+ * in `input`. Null arguments are left out so the backend keeps whatever is already stored -
+ * importantly the password, which is never read back.
+ */
+suspend fun VrcxCoreClient.syncConfigure(
+    host: String? = null,
+    port: Int? = null,
+    database: String? = null,
+    user: String? = null,
+    password: String? = null,
+    tlsVerify: Boolean? = null,
+    allowPlaintext: Boolean? = null,
+    intervalSeconds: Int? = null,
+    collectorPriority: Int? = null,
+    enabled: Boolean? = null,
+): JsonElement {
+    val connection = buildJsonObject {
+        if (host != null) put("host", host)
+        if (port != null) put("port", port)
+        if (database != null) put("database", database)
+        if (user != null) put("user", user)
+        if (!password.isNullOrEmpty()) put("password", password)
+        if (tlsVerify != null) put("tlsVerify", tlsVerify)
+        if (allowPlaintext != null) put("allowPlaintext", allowPlaintext)
+    }
+    return invoke(
+        "sync__configure",
+        buildJsonObject {
+            if (connection.isNotEmpty()) put("connection", connection)
+            if (intervalSeconds != null) put("intervalSec", intervalSeconds)
+            if (collectorPriority != null) put("collectorPriority", collectorPriority)
+            if (enabled != null) put("enabled", enabled)
+        },
+    )
+}
+
+/**
+ * Probes connection details without saving them (`sync__test_connection`).
+ *
+ * The args are the struct itself - cloud and the desktop both send `{connection: {...}}` - and the
+ * answer is `{ok, serverVersion, latencyMs, error}`.
+ */
+suspend fun VrcxCoreClient.syncTestConnection(
+    host: String,
+    port: Int,
+    user: String,
+    password: String?,
+    database: String,
+    tlsVerify: Boolean,
+    allowPlaintext: Boolean,
+): JsonElement = invoke(
+    "sync__test_connection",
+    buildJsonObject {
+        put("connection", buildJsonObject {
+            put("host", host)
+            put("port", port)
+            put("user", user)
+            if (!password.isNullOrEmpty()) put("password", password)
+            put("database", database)
+            put("tlsVerify", tlsVerify)
+            put("allowPlaintext", allowPlaintext)
+        })
+    },
+)
+
 /** The configured connection, without the password (only `hasPassword`). */
 suspend fun VrcxCoreClient.syncConnection(): JsonElement = invoke("sync__get_connection")
 
@@ -892,6 +960,9 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
+
+
 
 
 

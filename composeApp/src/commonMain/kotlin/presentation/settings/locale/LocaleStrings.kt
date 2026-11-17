@@ -1243,6 +1243,28 @@ sealed class LocaleStrings {
     open val settingsSyncLastCycle: String = "Last sync"
     open val settingsSyncTransferred: String = "Pulled / pushed"
     open val settingsSyncNow: String = "Sync now"
+
+    open val settingsSyncConfigure: String = "Sync target"
+    open val settingsSyncPort: String = "Port"
+    open val settingsSyncDatabase: String = "Database"
+    open val settingsSyncUser: String = "User"
+    open val settingsSyncPasswordKeep: String = "Password (leave empty to keep the stored one)"
+    open val settingsSyncInterval: String = "Sync interval (seconds)"
+    open val settingsSyncHostRequired: String = "Enter a server address."
+    open val settingsSyncPortInvalid: String = "Port must be between 1 and 65535."
+    open val settingsSyncDatabaseRequired: String = "Enter a database name."
+    open val settingsSyncUserRequired: String = "Enter a user name."
+    open val settingsSyncIntervalInvalid: String = "Interval must be at least 5 seconds."
+    open val settingsSyncConnectionHint: String = "PostgreSQL database shared by every VRCX client."
+    open val settingsSyncPasswordSaved: String = "A password is stored. Leave the field empty to keep it."
+    open val settingsSyncTlsVerify: String = "Verify TLS certificate"
+    open val settingsSyncTlsVerifyHint: String = "Reject a server whose certificate does not verify."
+    open val settingsSyncAllowPlaintext: String = "Allow plaintext"
+    open val settingsSyncAllowPlaintextHint: String = "Needed when TLS is disabled and the traffic is not encrypted."
+    open val settingsSyncPriority: String = "Collector priority"
+    open val settingsSyncTest: String = "Test"
+    open val settingsSyncTestOk: String = "Connected (%ms% ms)"
+    open val settingsSyncTestFailed: String = "Connection failed"
 }
 
 val strings: LocaleStrings
@@ -1256,6 +1278,5 @@ val strings: LocaleStrings
             else -> LocaleStringsEn
         }
     }
-
 
 

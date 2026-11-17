@@ -1,8 +1,10 @@
 package io.github.vrcmteam.vrcm.service
 
 import io.github.vrcmteam.vrcm.mobilecore.VrcxCoreException
+import io.github.vrcmteam.vrcm.mobilecore.syncConfigure
 import io.github.vrcmteam.vrcm.mobilecore.syncConnection
 import io.github.vrcmteam.vrcm.mobilecore.syncStatus
+import io.github.vrcmteam.vrcm.mobilecore.syncTestConnection
 import io.github.vrcmteam.vrcm.mobilecore.syncTriggerNow
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -30,7 +32,11 @@ data class SyncStatusVo(
     val database: String = "",
     val user: String = "",
     val hasPassword: Boolean = false,
+    val enabled: Boolean = false,
+    val tlsVerify: Boolean = false,
+    val allowPlaintext: Boolean = true,
     val intervalSeconds: Int = 0,
+    val collectorPriority: Int = 0,
     val lastCycleAt: String = "",
     val lastPulled: Int = 0,
     val lastPushed: Int = 0,
@@ -39,6 +45,16 @@ data class SyncStatusVo(
 ) {
     val connected: Boolean get() = configured && error == null
 }
+
+/**
+ * The answer to `sync__test_connection`: `ok` plus either a latency or a readable error.
+ */
+data class SyncConnectionTestVo(
+    val ok: Boolean = false,
+    val serverVersion: String = "",
+    val latencyMs: Int = 0,
+    val error: String? = null,
+)
 
 /**
  * Reads and triggers the core's sync.
@@ -54,6 +70,12 @@ class SyncStatusService {
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
+    private val _testing = MutableStateFlow(false)
+    val testing: StateFlow<Boolean> = _testing.asStateFlow()
+
+    private val _testResult = MutableStateFlow<SyncConnectionTestVo?>(null)
+    val testResult: StateFlow<SyncConnectionTestVo?> = _testResult.asStateFlow()
+
     suspend fun refresh() {
         val client = vrcxCoreClient()
         _status.value = runCatching {
@@ -64,6 +86,88 @@ class SyncStatusService {
             _status.value.copy(
                 error = (error as? VrcxCoreException)?.message ?: error.message ?: "sync status failed",
             )
+        }
+    }
+
+    /**
+     * Writes the whole connection (plus interval and collector priority), then re-reads the state.
+     *
+     * Every field is sent, as the desktop page does. The password is the exception: it is only sent
+     * when the user typed one, because it is never read back - an empty field means "keep the stored
+     * one", not "clear it".
+     */
+    suspend fun configure(
+        host: String,
+        port: Int,
+        user: String,
+        password: String,
+        database: String,
+        tlsVerify: Boolean,
+        allowPlaintext: Boolean,
+        intervalSeconds: Int,
+        collectorPriority: Int,
+    ) {
+        if (_busy.value) return
+        _busy.value = true
+        try {
+            val client = vrcxCoreClient()
+            client.syncConfigure(
+                host = host.trim(),
+                port = port,
+                database = database.trim(),
+                user = user.trim(),
+                password = password.trim().ifBlank { null },
+                tlsVerify = tlsVerify,
+                allowPlaintext = allowPlaintext,
+                intervalSeconds = intervalSeconds,
+                collectorPriority = collectorPriority,
+            )
+            refresh()
+        } catch (error: Throwable) {
+            _status.value = _status.value.copy(
+                error = (error as? VrcxCoreException)?.message ?: error.message ?: "sync configure failed",
+            )
+        } finally {
+            _busy.value = false
+        }
+    }
+
+    /** Probes the given details without saving them, as the desktop page does before a save. */
+    suspend fun test(
+        host: String,
+        port: Int,
+        user: String,
+        password: String,
+        database: String,
+        tlsVerify: Boolean,
+        allowPlaintext: Boolean,
+    ) {
+        if (_testing.value) return
+        _testing.value = true
+        _testResult.value = null
+        try {
+            val root = vrcxCoreClient().syncTestConnection(
+                host = host.trim(),
+                port = port,
+                user = user.trim(),
+                password = password.trim().ifBlank { null },
+                database = database.trim(),
+                tlsVerify = tlsVerify,
+                allowPlaintext = allowPlaintext,
+            ).jsonObject
+            _testResult.value = SyncConnectionTestVo(
+                ok = (root["ok"] as? JsonPrimitive)?.booleanOrNull ?: false,
+                serverVersion = (root["serverVersion"] as? JsonPrimitive)?.contentOrNull.orEmpty(),
+                latencyMs = (root["latencyMs"] as? JsonPrimitive)?.intOrNull ?: 0,
+                error = (root["error"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() },
+            )
+        } catch (error: Throwable) {
+            _testResult.value = SyncConnectionTestVo(
+                ok = false,
+                error = (error as? VrcxCoreException)?.message ?: error.message ?: "test failed",
+            )
+        } finally {
+            _testing.value = false
         }
     }
 
@@ -92,12 +196,16 @@ class SyncStatusService {
         val last = history.firstOrNull()
         return SyncStatusVo(
             configured = statusRoot.bool("configured"),
+            enabled = statusRoot.bool("enabled"),
             host = connection?.str("host").orEmpty(),
             port = connection?.int("port") ?: 0,
             database = connection?.str("database").orEmpty(),
             user = connection?.str("user").orEmpty(),
             hasPassword = connection?.bool("hasPassword") ?: false,
+            tlsVerify = connection?.bool("tlsVerify") ?: false,
+            allowPlaintext = connection?.bool("allowPlaintext") ?: true,
             intervalSeconds = connection?.int("intervalSeconds") ?: 0,
+            collectorPriority = connection?.int("collectorPriority") ?: 0,
             lastCycleAt = last?.str("at").orEmpty(),
             lastPulled = last?.int("pulled") ?: 0,
             lastPushed = last?.int("pushed") ?: 0,
@@ -115,4 +223,9 @@ private fun JsonObject.bool(key: String): Boolean =
 
 private fun JsonObject.int(key: String): Int =
     (this[key] as? JsonPrimitive)?.intOrNull ?: 0
+
+
+
+
+
 

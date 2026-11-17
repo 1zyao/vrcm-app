@@ -1194,8 +1194,29 @@ override val notificationInviteRequest = "招待リクエスト"
     override val settingsSyncLastCycle = "最終同期"
     override val settingsSyncTransferred = "取得 / 送信"
     override val settingsSyncNow = "今すぐ同期"
-}
 
+    override val settingsSyncConfigure = "同期先"
+    override val settingsSyncPort = "ポート"
+    override val settingsSyncDatabase = "データベース"
+    override val settingsSyncUser = "ユーザー名"
+    override val settingsSyncPasswordKeep = "パスワード（空欄なら変更しません）"
+    override val settingsSyncInterval = "同期間隔（秒）"
+    override val settingsSyncHostRequired = "サーバーアドレスを入力してください。"
+    override val settingsSyncPortInvalid = "ポートは 1〜65535 の範囲で指定してください。"
+    override val settingsSyncDatabaseRequired = "データベース名を入力してください。"
+    override val settingsSyncUserRequired = "ユーザー名を入力してください。"
+    override val settingsSyncIntervalInvalid = "間隔は 5 秒以上にしてください。"
+    override val settingsSyncConnectionHint = "各 VRCX クライアントで共有する PostgreSQL データベース。"
+    override val settingsSyncPasswordSaved = "パスワード保存済み。空欄なら変更しません。"
+    override val settingsSyncTlsVerify = "TLS 証明書を検証"
+    override val settingsSyncTlsVerifyHint = "証明書の検証に失敗した接続を拒否します。"
+    override val settingsSyncAllowPlaintext = "平文接続を許可"
+    override val settingsSyncAllowPlaintextHint = "TLS を無効にし通信が暗号化されていない場合に必要です。"
+    override val settingsSyncPriority = "収集の優先度"
+    override val settingsSyncTest = "テスト"
+    override val settingsSyncTestOk = "接続成功（%ms% ミリ秒）"
+    override val settingsSyncTestFailed = "接続に失敗しました"
+}
 
 
 

@@ -530,6 +530,7 @@ private fun SyncStatusSection() {
     val status by service.status.collectAsState()
     val busy by service.busy.collectAsState()
     val scope = rememberCoroutineScope()
+    var showConfigure by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { service.refresh() }
 
     SettingsGroup(title = strings.settingsDataSync) {
@@ -545,10 +546,15 @@ private fun SyncStatusSection() {
             },
         )
         SettingsRowDivider()
+        // Editable: the target lives in the core's config, so this row opens a form instead of
+        // showing a value the user has no way to change.
         AppRow(
             title = strings.settingsSyncServer,
             value = if (status.host.isBlank()) "-"
             else "${status.host}:${status.port} / ${status.database}",
+            enabled = !busy,
+            chevron = true,
+            onClick = { showConfigure = true },
         )
         SettingsRowDivider()
         AppRow(
@@ -567,6 +573,39 @@ private fun SyncStatusSection() {
             enabled = !busy && status.configured,
             chevron = true,
             onClick = { scope.launch { service.triggerNow() } },
+        )
+    }
+
+    if (showConfigure) {
+        val testing by service.testing.collectAsState()
+        val testResult by service.testResult.collectAsState()
+        SyncConfigureDialog(
+            initial = status,
+            submitting = busy,
+            testing = testing,
+            testResult = testResult,
+            onDismiss = { showConfigure = false },
+            onTest = { host, port, user, password, database, tlsVerify, allowPlaintext ->
+                scope.launch {
+                    service.test(host, port, user, password, database, tlsVerify, allowPlaintext)
+                }
+            },
+            onSave = { host, port, user, password, database, tlsVerify, allowPlaintext, interval, priority ->
+                showConfigure = false
+                scope.launch {
+                    service.configure(
+                        host = host,
+                        port = port,
+                        user = user,
+                        password = password,
+                        database = database,
+                        tlsVerify = tlsVerify,
+                        allowPlaintext = allowPlaintext,
+                        intervalSeconds = interval,
+                        collectorPriority = priority,
+                    )
+                }
+            },
         )
     }
 }
@@ -1059,4 +1098,5 @@ private fun FriendOverrideRow(
         }
     }
 }
+
 

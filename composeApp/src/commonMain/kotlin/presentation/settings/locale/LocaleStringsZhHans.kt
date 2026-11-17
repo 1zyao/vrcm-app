@@ -1166,8 +1166,29 @@ override val notificationInviteRequest = "申请加入"
     override val settingsSyncLastCycle = "最近一次同步"
     override val settingsSyncTransferred = "拉取 / 推送"
     override val settingsSyncNow = "立即同步"
-}
 
+    override val settingsSyncConfigure = "同步目标"
+    override val settingsSyncPort = "端口"
+    override val settingsSyncDatabase = "数据库"
+    override val settingsSyncUser = "用户名"
+    override val settingsSyncPasswordKeep = "密码（留空则保持不变）"
+    override val settingsSyncInterval = "同步间隔（秒）"
+    override val settingsSyncHostRequired = "请填写服务器地址。"
+    override val settingsSyncPortInvalid = "端口需在 1 到 65535 之间。"
+    override val settingsSyncDatabaseRequired = "请填写数据库名。"
+    override val settingsSyncUserRequired = "请填写用户名。"
+    override val settingsSyncIntervalInvalid = "间隔至少 5 秒。"
+    override val settingsSyncConnectionHint = "各 VRCX 客户端共用的 PostgreSQL 数据库。"
+    override val settingsSyncPasswordSaved = "已保存密码，留空即保持不变。"
+    override val settingsSyncTlsVerify = "校验 TLS 证书"
+    override val settingsSyncTlsVerifyHint = "证书校验失败时拒绝连接。"
+    override val settingsSyncAllowPlaintext = "允许明文连接"
+    override val settingsSyncAllowPlaintextHint = "关闭 TLS 且流量未加密时需要。"
+    override val settingsSyncPriority = "采集优先级"
+    override val settingsSyncTest = "测试"
+    override val settingsSyncTestOk = "连接成功（%ms% 毫秒）"
+    override val settingsSyncTestFailed = "连接失败"
+}
 
 
 
