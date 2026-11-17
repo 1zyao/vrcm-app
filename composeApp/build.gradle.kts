@@ -32,6 +32,20 @@ kotlin {
             baseName = "ComposeApp"
             isStatic = true
         }
+
+        // The VRCX-0 core's static library, produced on macOS:
+        //   cargo build --target aarch64-apple-ios --release
+        //   copy target/aarch64-apple-ios/release/libvrcx_0_mobile.a → src/nativeInterop/cinterop/vrcx_core.a
+        // (see docs/FORK-DELTA.md §8). Guarded so an Android/desktop build — and an iOS build on a
+        // machine that has not produced the library yet — is unaffected instead of failing to configure.
+        val coreLib = layout.projectDirectory
+            .file("src/nativeInterop/cinterop/vrcx_core.a").asFile
+        if (coreLib.exists()) {
+            iosTarget.compilations.getByName("main").cinterops.create("vrcxCore") {
+                defFile(layout.projectDirectory.file("src/nativeInterop/cinterop/vrcx_core.def"))
+                includeDirs(layout.projectDirectory.dir("src/nativeInterop/cinterop"))
+            }
+        }
     }
 
     sourceSets {

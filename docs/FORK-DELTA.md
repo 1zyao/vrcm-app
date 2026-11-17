@@ -171,24 +171,108 @@ iosApp/                       完整的 Xcode 工程 + Info.plist        有
 
 改造后数据来自进程内的 Rust 核心（本地库 + 回环命令总线），才有"怎么在 iOS 上启动它"这个问题。
 
-### 需要做的四件事
+### 需要做的六件事，以及各自的进度
 
 ```
 Rust 侧
-  1. mobile-core 加一个 extern "C" 入口（职责等同 Android 的 JNI 那个）
-  2. crate-type 加 staticlib
-  3. 在 macOS 上编 aarch64-apple-ios → xcframework   ← 唯一硬门槛，必须 macOS + Xcode
+  1. mobile-core 加一个 extern "C" 入口（职责等同 Android 的 JNI 那个）   ✅ 已完成
+  2. crate-type 加 staticlib                                              ✅ 已完成
+  3. 在 macOS 上编 aarch64-apple-ios → vrcx_core.a                        ⬜ 必须 macOS + Xcode
 
 Kotlin 侧
-  4. iosMain 的 VrcxCoreBridge 换成真实实现 + cinterop 定义（约 30 行）
+  4. iosMain 的 VrcxCoreBridge 换成真实实现（cinterop 声明已就位）          ⬜ 等第 3 步
+  5. Info.plist 加 NSAllowsLocalNetworking                                 ✅ 已完成
 
 iOS 工程
-  5. Info.plist 加 NSAllowsLocalNetworking           ← ATS 默认禁止 http://127.0.0.1
-  6. app 进后台/回前台的重连处理（iOS 没有前台服务保活）
+  6. app 进后台/回前台的重连处理（iOS 没有前台服务保活）                    ⬜ 等第 3 步
 ```
 
 **只需要一个 C 函数**，因为 core 的协议是回环 HTTP：启动一次之后，`VrcxCoreClient` 里所有命令
 调用都走 `127.0.0.1`，`commonMain` 一行都不用改。
+
+#### 已完成的部分
+
+Rust（`crates/mobile-core/src/lib.rs`）：
+
+```rust
+#[no_mangle]
+pub unsafe extern "C" fn vrcx_core_start(
+    data_dir: *const c_char,
+    device_name: *const c_char,
+) -> *mut c_char        // {"port":<u16>,"token":"…"} 或 {"error":"…"}
+
+#[no_mangle]
+pub unsafe extern "C" fn vrcx_core_free(value: *mut c_char)
+```
+
+`crate-type = ["cdylib", "staticlib", "rlib"]`。
+
+Kotlin 侧的准备（`composeApp/src/nativeInterop/cinterop/`）：
+
+```
+vrcx_core.h     手写的 C 头（cargo 不产头文件），与 Rust 侧签名必须一致
+vrcx_core.def   cinterop 定义，含 iOS 需要的系统 framework 链接参数
+build.gradle.kts 里加了 cinterop 块，但**只在 vrcx_core.a 存在时才注册**，
+                 所以 Android/桌面构建、以及还没有静态库的 iOS 构建都不会因此失败
+```
+
+iOS 工程（`iosApp/iosApp/Info.plist`）：
+
+```xml
+<key>NSAppTransportSecurity</key>
+<dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+</dict>
+```
+
+#### 在 Windows 上已经验证到哪一步
+
+```
+cargo check -p vrcx-0-mobile-core                                    ✅
+cargo test  -p vrcx-0-mobile-core --lib                               ✅ 5 个测试
+    the_c_entry_point_starts_a_reachable_core    调 C 入口，拿到 port/token，
+                                                 并真的连上那个端口
+    the_c_entry_point_reports_a_null_data_dir    null 输入返回 {"error":…} 而不是崩溃
+脚本构建 Android 核心 build-core.ps1 -Abi x86_64                       ✅
+    → libvrcx_0_mobile.so 142.1 MB（cdylib 未受 staticlib 影响）
+    → libvrcx_0_mobile.a（static，533 MB，iOS 会用同一条路径）
+gradle 配置阶段 + Android 编译                                          ✅（cinterop 守卫有效）
+```
+
+也就是说：**除了"在 macOS 上把静态库编出来"这一步，其余已经做完并验证。**
+
+#### 剩下的 macOS 步骤（照抄即可）
+
+```bash
+# 1. 装 target
+rustup target add aarch64-apple-ios aarch64-apple-ios-sim
+
+# 2. 编静态库（在 D:\vrcx0\mobile 的等价克隆上）
+cargo build --target aarch64-apple-ios --release -p vrcx-0-mobile-core
+cargo build --target aarch64-apple-ios-sim --release -p vrcx-0-mobile-core   # 模拟器
+
+# 3. 放进 KMP 工程（cinterop 会自动生效，因为守卫检测的就是这个文件）
+cp target/aarch64-apple-ios/release/libvrcx_0_mobile.a \
+   composeApp/src/nativeInterop/cinterop/vrcx_core.a
+
+# 4. 换掉 iosMain 的 stub（composeApp/src/iosMain/kotlin/mobilecore/VrcxCoreBridge.kt）
+#    现在是 error("The VRCX-0 core runs inside the phone app only")
+```
+
+第 4 步要写的实现大致是：
+
+```kotlin
+// 用 cinterop 生成的包名：io.github.vrcmteam.vrcm.core.cinterop
+@OptIn(ExperimentalForeignApi::class)
+private fun startCore(dataDir: String, deviceName: String): String =
+    memScoped {
+        val json = vrcx_core_start(dataDir.cstr.ptr, deviceName.cstr.ptr)
+        try { json?.toKString() ?: error("core returned null") }
+        finally { vrcx_core_free(json) }
+    }
+// dataDir = NSSearchPathForDirectoriesInDomains(.applicationSupportDirectory, ...).first
+```
 
 ### 已排除的误解：iOS 会不会"不能回环"
 

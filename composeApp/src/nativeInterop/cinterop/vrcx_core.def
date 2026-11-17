@@ -1,0 +1,22 @@
+/*
+ * cinterop definition for the VRCX-0 core on iOS.
+ *
+ * The library itself has to be built on macOS - Rust cannot link an iOS target from Windows - so this
+ * file is the declaration that goes with it. Once `vrcx_core.a` exists (produced by
+ * `cargo build --target aarch64-apple-ios --release` and copied next to this file), the Gradle
+ * `cinterop` block in `composeApp/build.gradle.kts` turns it into `libvrcx_core`, and
+ * `iosMain/.../VrcxCoreBridge.kt` can replace its stub with the real implementation.
+ *
+ * The C surface is exactly two functions; everything after start-up is loopback HTTP, so nothing else
+ * crosses this boundary. See `docs/FORK-DELTA.md` §8 for the full checklist.
+ */
+headers = vrcx_core.h
+headerFilter = vrcx_core.h
+package = io.github.vrcmteam.vrcm.core.cinterop
+
+# Rust's static libraries need the system frameworks the host pulls in:
+#   CoreFoundation / Security  - keychain and TLS roots
+#   SystemConfiguration        - network reachability
+#   Foundation                 - used by the JNI-free path on Apple platforms
+linkerOpts = -framework CoreFoundation -framework Security -framework SystemConfiguration \
+             -framework Foundation -lz -liconv
