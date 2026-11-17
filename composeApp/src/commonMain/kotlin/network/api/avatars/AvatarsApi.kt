@@ -14,6 +14,8 @@ import io.github.vrcmteam.vrcm.mobilecore.favoriteDetailsHydrate
 import io.github.vrcmteam.vrcm.mobilecore.favoriteEntityIds
 import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.avatarGet
+import io.github.vrcmteam.vrcm.mobilecore.avatarSelect
+import io.github.vrcmteam.vrcm.mobilecore.avatarSelectFallback
 import io.github.vrcmteam.vrcm.mobilecore.avatarStylesGet
 import io.github.vrcmteam.vrcm.mobilecore.avatarListByUserGet
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
@@ -40,10 +42,18 @@ class AvatarsApi(private val client: HttpClient) {
         )
 
     suspend fun selectAvatar(avatarId: String): AvatarSelectionData =
-        client.put("$AVATARS_API_PREFIX/$avatarId/select").checkSuccess()
+        // Served by the backend. Reversible by selecting another avatar, and it changes nothing but
+        // this account's own current avatar.
+        CoreJson.decodeFromString(
+            AvatarSelectionData.serializer(),
+            vrcxCoreClient().avatarSelect(avatarId).bodyOrThrow(),
+        )
 
     suspend fun selectFallbackAvatar(avatarId: String): CurrentUserData =
-        client.put("$AVATARS_API_PREFIX/$avatarId/selectFallback").checkSuccess()
+        CoreJson.decodeFromString(
+            CurrentUserData.serializer(),
+            vrcxCoreClient().avatarSelectFallback(avatarId).bodyOrThrow(),
+        )
 
     suspend fun deleteImpostor(avatarId: String) {
         client.delete("$AVATARS_API_PREFIX/$avatarId/impostor").checkSuccess { Unit }
@@ -164,6 +174,7 @@ class AvatarsApi(private val client: HttpClient) {
         }
     }
 }
+
 
 
 

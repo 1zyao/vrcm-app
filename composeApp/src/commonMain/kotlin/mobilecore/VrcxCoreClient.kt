@@ -426,6 +426,18 @@ suspend fun VrcxCoreClient.worldGet(
     }
 ).toVrchatResult()
 
+/** Wears an avatar (`app__vrchat_avatar_select`). */
+suspend fun VrcxCoreClient.avatarSelect(avatarId: String): VrchatResult = invoke(
+    "app__vrchat_avatar_select",
+    buildJsonObject { put("input", buildJsonObject { put("avatarId", avatarId) }) }
+).toVrchatResult()
+
+/** Sets the fallback avatar (`app__vrchat_avatar_select_fallback`). */
+suspend fun VrcxCoreClient.avatarSelectFallback(avatarId: String): VrchatResult = invoke(
+    "app__vrchat_avatar_select_fallback",
+    buildJsonObject { put("input", buildJsonObject { put("avatarId", avatarId) }) }
+).toVrchatResult()
+
 /** The available avatar styles (`app__vrchat_avatar_styles_get`). */
 suspend fun VrcxCoreClient.avatarStylesGet(): VrchatResult =
     invoke("app__vrchat_avatar_styles_get").toVrchatResult()
@@ -804,6 +816,7 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
 
 
 
