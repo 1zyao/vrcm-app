@@ -1,6 +1,7 @@
 package io.github.vrcmteam.vrcm.network.api.favorite
 
 import io.github.vrcmteam.vrcm.core.extensions.fetchDataList
+import io.github.vrcmteam.vrcm.mobilecore.favoriteAdd
 import io.github.vrcmteam.vrcm.mobilecore.favoriteDelete
 import io.github.vrcmteam.vrcm.mobilecore.favoriteGroupsGet
 import io.github.vrcmteam.vrcm.mobilecore.favoriteList
@@ -18,7 +19,6 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import io.github.vrcmteam.vrcm.network.api.attributes.*
-import io.github.vrcmteam.vrcm.network.api.favorite.data.AddFavoriteRequest
 import io.github.vrcmteam.vrcm.network.api.favorite.data.FavoriteData
 import io.github.vrcmteam.vrcm.network.api.favorite.data.FavoriteGroupData
 import io.github.vrcmteam.vrcm.network.api.favorite.data.FavoriteLimits
@@ -61,16 +61,17 @@ class FavoriteApi(private val client: HttpClient) {
         favoriteType: FavoriteType,
         tag: String
     ): FavoriteData {
-        val request = AddFavoriteRequest(
-            type = favoriteType.value,
-            favoriteId = favoriteId,
-            tags = listOf(tag)
+        // Served by the backend, with the same addressing as the delete path: `favoriteId` is the
+        // ENTITY id, not a record id. The response is VRChat's own favourite record, which is what
+        // this decoded before too.
+        return CoreJson.decodeFromString(
+            FavoriteData.serializer(),
+            vrcxCoreClient().favoriteAdd(
+                type = favoriteType.value,
+                entityId = favoriteId,
+                tags = tag,
+            ).bodyOrThrow(),
         )
-        
-        return client.post(FAVORITES_API_PREFIX) {
-            contentType(ContentType.Application.Json)
-            setBody(request)
-        }.checkSuccess()
     }
 
     
@@ -262,6 +263,8 @@ private fun JsonObject.favoriteGroups(type: FavoriteType): List<FavoriteGroupDat
         )
     }
 }
+
+
 
 
 
