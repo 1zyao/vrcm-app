@@ -50,7 +50,7 @@ foreach ($entry in $targets) {
     $log = Join-Path $env:TEMP "vrcx-core-$abi.log"
     Push-Location $CoreRepo
     try {
-        cmd /c "cargo build --target $target -p vrcx-0-mobile-core > `"$log`" 2>&1"
+        cmd /c "cargo build --target $target -p vrcx-0-mobile-android > `"$log`" 2>&1"
         $code = $LASTEXITCODE
     } finally { Pop-Location }
     if ($code -ne 0) {
