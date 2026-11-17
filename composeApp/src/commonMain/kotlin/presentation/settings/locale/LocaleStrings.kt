@@ -1274,6 +1274,11 @@ sealed class LocaleStrings {
     open val settingsSyncCycleTablesEmpty: String = "Nothing changed this cycle"
     open val settingsSyncHistoryTitle: String = "Recent cycles"
     open val settingsSyncHistoryNoChange: String = "no change"
+
+    open val settingsSyncProgressTablesOf: String = "Tables %percent%%"
+    open val settingsSyncProgressTableRowsOf: String = "%done% / %total% rows (%percent%%)"
+    open val settingsSyncProgressRowsOf: String = "%done% / %total% rows total (%percent%%)"
+    open val settingsSyncProgressRows: String = "%count% rows so far"
     open val settingsSyncPending: String = "%count% waiting to push"
     open val settingsSyncDeviceId: String = "This device"
     open val settingsSyncBootstrap: String = "First sync"

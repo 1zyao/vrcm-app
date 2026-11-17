@@ -88,8 +88,37 @@ data class SyncStatusVo(
     val bootstrapTablesTotal: Int = 0,
     val bootstrapRowsDone: Long = 0,
     val bootstrapRowsTotal: Long = 0,
+    /** Which bootstrap phase: push / merge / done. Worth showing: a long push is not a hang. */
+    val bootstrapPhase: String = "",
+    val bootstrapCurrentTable: String = "",
+    val bootstrapCurrentTableRowsDone: Long = 0,
+    val bootstrapCurrentTableRowsTotal: Long = 0,
 ) {
     val connected: Boolean get() = configured && error == null
+
+    /** Table completion as a fraction, or null when the total is not known yet. */
+    val bootstrapTablesFraction: Float?
+        get() = if (bootstrapTablesTotal > 0) {
+            (bootstrapTablesDone.toFloat() / bootstrapTablesTotal).coerceIn(0f, 1f)
+        } else {
+            null
+        }
+
+    /** Current table's rows as a fraction, or null when that table's size is unknown. */
+    val bootstrapTableRowsFraction: Float?
+        get() = if (bootstrapCurrentTableRowsTotal > 0) {
+            (bootstrapCurrentTableRowsDone.toFloat() / bootstrapCurrentTableRowsTotal).coerceIn(0f, 1f)
+        } else {
+            null
+        }
+
+    /** Overall rows as a fraction, or null when the total is not known yet. */
+    val bootstrapRowsFraction: Float?
+        get() = if (bootstrapRowsTotal > 0) {
+            (bootstrapRowsDone.toFloat() / bootstrapRowsTotal).coerceIn(0f, 1f)
+        } else {
+            null
+        }
 }
 
 /**
@@ -140,6 +169,10 @@ class SyncStatusService {
                     bootstrapTablesTotal = progress.int("tablesTotal"),
                     bootstrapRowsDone = progress.long("rowsDone"),
                     bootstrapRowsTotal = progress.long("rowsTotal"),
+                    bootstrapPhase = progress.str("phase"),
+                    bootstrapCurrentTable = progress.str("currentTable"),
+                    bootstrapCurrentTableRowsDone = progress.long("currentTableRowsDone"),
+                    bootstrapCurrentTableRowsTotal = progress.long("currentTableRowsTotal"),
                 )
             }
         }.getOrElse { error ->

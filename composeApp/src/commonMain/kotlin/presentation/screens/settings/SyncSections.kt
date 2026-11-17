@@ -20,10 +20,12 @@ import androidx.compose.ui.unit.dp
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppActivityIndicator
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppButton
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppButtonStyle
+import io.github.vrcmteam.vrcm.presentation.designsystem.AppProgressBar
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppRow
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppText
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppTheme
 import io.github.vrcmteam.vrcm.presentation.designsystem.AppToggle
+import io.github.vrcmteam.vrcm.presentation.settings.locale.LocaleStrings
 import io.github.vrcmteam.vrcm.presentation.settings.locale.strings
 import io.github.vrcmteam.vrcm.service.SyncStatusService
 import io.github.vrcmteam.vrcm.service.SyncStatusVo
@@ -227,14 +229,7 @@ internal fun SyncStatusCard() {
         )
         if (status.bootstrapRunning) {
             SettingsRowDivider()
-            AppRow(
-                title = s.settingsSyncBootstrap,
-                value = s.settingsSyncBootstrapProgress
-                    .replace("%tables%", status.bootstrapTablesDone.toString())
-                    .replace("%total%", status.bootstrapTablesTotal.toString())
-                    .replace("%rows%", status.bootstrapRowsDone.toString())
-                    .replace("%rowsTotal%", status.bootstrapRowsTotal.toString()),
-            )
+            BootstrapProgressBlock(status = status, strings = s)
         }
         if (status.enabled) {
             SettingsRowDivider()
@@ -295,10 +290,106 @@ internal fun SyncStatusCard() {
     }
 }
 
+/**
+ * The first-run backfill, with the bars the desktop shows.
+ *
+ * A plain "15/56 tables" line reads like a frozen number; a bar plus the current table name makes it
+ * obvious the engine is working through 400k rows rather than stuck.
+ */
+@Composable
+private fun BootstrapProgressBlock(status: SyncStatusVo, strings: LocaleStrings) {
+    val tablesFraction = status.bootstrapTablesFraction
+    val tableRowsFraction = status.bootstrapTableRowsFraction
+    val rowsFraction = status.bootstrapRowsFraction
+
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            AppActivityIndicator(modifier = Modifier.size(14.dp))
+            AppText(
+                text = strings.settingsSyncBootstrap + " · " + bootstrapPhaseLabel(strings, status.bootstrapPhase),
+                style = AppTheme.type.footnote,
+                modifier = Modifier.weight(1f),
+            )
+            tablesFraction?.let {
+                AppText(
+                    text = strings.settingsSyncProgressTablesOf
+                        .replace("%percent%", percent(it).toString()),
+                    style = AppTheme.type.footnote,
+                    color = AppTheme.colors.secondaryLabel,
+                )
+            }
+        }
+        // Indeterminate while the totals are still unknown, determinate as soon as they arrive.
+        if (tablesFraction == null) {
+            AppProgressBar()
+        } else {
+            AppProgressBar(progress = { tablesFraction })
+        }
+        if (status.bootstrapCurrentTable.isNotBlank()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                AppText(
+                    text = status.bootstrapCurrentTable,
+                    style = AppTheme.type.footnote,
+                    color = AppTheme.colors.secondaryLabel,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f),
+                )
+                AppText(
+                    text = tableRowsFraction?.let {
+                        strings.settingsSyncProgressTableRowsOf
+                            .replace("%done%", status.bootstrapCurrentTableRowsDone.toString())
+                            .replace("%total%", status.bootstrapCurrentTableRowsTotal.toString())
+                            .replace("%percent%", percent(it).toString())
+                    } ?: strings.settingsSyncProgressRows
+                        .replace("%count%", status.bootstrapCurrentTableRowsDone.toString()),
+                    style = AppTheme.type.footnote,
+                    color = AppTheme.colors.secondaryLabel,
+                )
+            }
+        }
+        tableRowsFraction?.let { AppProgressBar(progress = { it }) }
+        rowsFraction?.let {
+            AppText(
+                text = strings.settingsSyncProgressRowsOf
+                    .replace("%done%", status.bootstrapRowsDone.toString())
+                    .replace("%total%", status.bootstrapRowsTotal.toString())
+                    .replace("%percent%", percent(it).toString()),
+                style = AppTheme.type.footnote,
+                color = AppTheme.colors.secondaryLabel,
+            )
+        } ?: AppText(
+            text = strings.settingsSyncProgressRows
+                .replace("%count%", status.bootstrapRowsDone.toString()),
+            style = AppTheme.type.footnote,
+            color = AppTheme.colors.secondaryLabel,
+        )
+    }
+}
+
+private fun percent(fraction: Float): Int = (fraction * 100f).toInt()
+
+private fun bootstrapPhaseLabel(strings: LocaleStrings, phase: String): String = when (phase) {
+    "push" -> strings.settingsSyncPhasePush
+    "merge" -> strings.settingsSyncPhaseMerge
+    "reconciling" -> strings.settingsSyncPhaseReconciling
+    "done" -> strings.settingsSyncPhaseDone
+    "bootstrap" -> strings.settingsSyncPhaseBootstrap
+    else -> strings.settingsSyncPhaseRunning
+}
+
 /** A row whose value is several lines (history, device list). `AppRow` is single-line by design. */
 @Composable
-private fun MultilineRow(title: String, lines: List<String>) {
-    Column(
+private fun MultilineRow(title: String, lines: List<String>) {    Column(
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
