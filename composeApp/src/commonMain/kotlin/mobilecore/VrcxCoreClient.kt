@@ -590,9 +590,32 @@ suspend fun VrcxCoreClient.favoriteDetailsHydrate(
     return details.mapNotNull { (key, value) -> (value as? JsonObject)?.let { key to it } }.toMap()
 }
 
+/** World search (`app__vrchat_search_worlds_get`). */
 /**
- * World search (`app__vrchat_search_worlds_get`).
+ * VRCX's recorded sessions (`app__game_log_sessions_query`).
  *
+ * This is the local game log, i.e. what the desktop recorded, not a VRChat endpoint. Fields come
+ * back in camelCase (`worldName`, `playerDurationRows`, …); `created_at` is the exception, kept in
+ * snake_case by an explicit serde rename.
+ */
+suspend fun VrcxCoreClient.gameLogSessionsQuery(
+    limit: Int = 20,
+    search: String = "",
+    dateFrom: String = "",
+    dateTo: String = "",
+): JsonElement = invoke(
+    "app__game_log_sessions_query",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("limit", limit)
+            if (search.isNotEmpty()) put("search", search)
+            if (dateFrom.isNotEmpty()) put("dateFrom", dateFrom)
+            if (dateTo.isNotEmpty()) put("dateTo", dateTo)
+        })
+    },
+)
+
+/**
  * `params` is the backend's own search parameter object. Note what the core measured: sending
  * `releaseStatus: "all"` on a search is answered with 403, so callers must leave it unset.
  */

@@ -66,6 +66,15 @@ class WorldsApi(private val client: HttpClient)  {
         n: Int = 50,
         offset: Int = 0,
     ): List<WorldData> =
+        // Deliberately still VRChat's `/worlds/recent`.
+        //
+        // Driving this screen from the game log was tried and reverted. The session rows carry the
+        // world id and name but no thumbnail or author, so filling a card meant one `app__world_get`
+        // per row - and that read falls through to the network on a cache miss, so the page would
+        // make fifty VRChat requests instead of one. That is worse than the thing it replaces.
+        //
+        // The recording-based version waits until the card can be drawn from local data alone, or
+        // until the screen shows what the log actually has: name, time, duration and players.
         client.get("$WORLDS_API_PREFIX/recent") {
             parameter("n", n)
             parameter("offset", offset)
@@ -251,6 +260,13 @@ class WorldsApi(private val client: HttpClient)  {
         )
     }
 }
+
+
+
+
+
+
+
 
 
 
