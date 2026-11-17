@@ -519,147 +519,6 @@ private fun FriendFilterSections() {
 }
 
 /**
- * VRCX's shared-database sync, as the core reports it.
- *
- * Every number here comes from the backend's own cycle history, so this is a readout of what the
- * engine did rather than a local guess - which is the point: the phone either reaches the shared
- * database or it says why it cannot.
- */
-@Composable
-private fun SyncStatusSection() {
-    val service = koinInject<SyncStatusService>()
-    val status by service.status.collectAsState()
-    val busy by service.busy.collectAsState()
-    val scope = rememberCoroutineScope()
-    var showConfigure by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { service.refresh() }
-
-    SettingsGroup(title = strings.settingsDataSync) {
-        // The switch is the save action, as on the desktop: flipping it writes the whole connection
-        // back with the new flag and restarts (or stops) the engine.
-        SettingsSwitchRow(
-            title = strings.settingsSyncEnabled,
-            description = null,
-            checked = status.enabled,
-        ) { next ->
-            scope.launch { service.setEnabled(next) }
-        }
-        SettingsRowDivider()
-        AppRow(
-            title = strings.settingsSyncStatus,
-            value = when {
-                !status.configured -> strings.settingsSyncNotConfigured
-                status.error != null -> status.error
-                else -> strings.settingsSyncConnected
-            },
-            trailing = {
-                AnimatedVisibility(busy) { AppActivityIndicator(Modifier.size(20.dp)) }
-            },
-        )
-        SettingsRowDivider()
-        // The rest of the desktop status card: engine phase, this device, anything waiting to be
-        // pushed, and the first-run backfill while it runs.
-        AppRow(
-            title = strings.settingsSyncPhase,
-            value = status.phase.ifBlank { "-" },
-            subtitle = if (status.pendingOutbox > 0) {
-                strings.settingsSyncPending.replace("%count%", status.pendingOutbox.toString())
-            } else {
-                null
-            },
-        )
-        if (status.deviceId.isNotBlank()) {
-            SettingsRowDivider()
-            AppRow(
-                title = strings.settingsSyncDeviceId,
-                value = status.deviceId.take(8),
-            )
-        }
-        if (status.bootstrapRunning) {
-            SettingsRowDivider()
-            AppRow(
-                title = strings.settingsSyncBootstrap,
-                value = strings.settingsSyncBootstrapProgress
-                    .replace("%tables%", status.bootstrapTablesDone.toString())
-                    .replace("%total%", status.bootstrapTablesTotal.toString())
-                    .replace("%rows%", status.bootstrapRowsDone.toString())
-                    .replace("%rowsTotal%", status.bootstrapRowsTotal.toString()),
-            )
-        }
-        if (status.devices.isNotEmpty()) {
-            SettingsRowDivider()
-            AppRow(
-                title = strings.settingsSyncDevices,
-                value = status.devices.size.toString(),
-                subtitle = status.devices.joinToString(" · "),
-            )
-        }
-        SettingsRowDivider()
-        // Editable: the target lives in the core's config, so this row opens a form instead of
-        // showing a value the user has no way to change.
-        AppRow(
-            title = strings.settingsSyncServer,
-            value = if (status.host.isBlank()) "-"
-            else "${status.host}:${status.port} / ${status.database}",
-            enabled = !busy,
-            chevron = true,
-            onClick = { showConfigure = true },
-        )
-        SettingsRowDivider()
-        AppRow(
-            title = strings.settingsSyncLastCycle,
-            value = status.lastCycleAt.ifBlank { "-" },
-        )
-        SettingsRowDivider()
-        AppRow(
-            title = strings.settingsSyncTransferred,
-            value = "${status.lastPulled} / ${status.lastPushed}",
-            subtitle = status.lastError,
-        )
-        SettingsRowDivider()
-        AppRow(
-            title = strings.settingsSyncNow,
-            enabled = !busy && status.configured,
-            chevron = true,
-            onClick = { scope.launch { service.triggerNow() } },
-        )
-    }
-
-    if (showConfigure) {
-        val testing by service.testing.collectAsState()
-        val testResult by service.testResult.collectAsState()
-        SyncConfigureDialog(
-            initial = status,
-            submitting = busy,
-            testing = testing,
-            testResult = testResult,
-            onDismiss = { showConfigure = false },
-            onTest = { host, port, user, password, database, tlsVerify, allowPlaintext ->
-                scope.launch {
-                    service.test(host, port, user, password, database, tlsVerify, allowPlaintext)
-                }
-            },
-            onSave = { host, port, user, password, database, tlsVerify, allowPlaintext, interval, priority ->
-                showConfigure = false
-                scope.launch {
-                    service.configure(
-                        host = host,
-                        port = port,
-                        user = user,
-                        password = password,
-                        database = database,
-                        tlsVerify = tlsVerify,
-                        allowPlaintext = allowPlaintext,
-                        intervalSeconds = interval,
-                        collectorPriority = priority,
-                    )
-                }
-            },
-        )
-    }
-}
-
-/**
  * The two limits that decide how much VRCX keeps, edited the way the desktop edits them:
  * `maxTableSize_v2` and `searchLimit` through the config commands.
  */
@@ -731,7 +590,8 @@ private fun PrivacyDataSections(platform: AppPlatform) {
     val decorationTemplateCacheDao = koinInject<DecorationTemplateCacheDao>()
     val meetupCardAssetStore = koinInject<MeetupCardAssetStore>()
     val scope = rememberCoroutineScope()
-    SyncStatusSection()
+    SyncConnectionSection()
+    SyncStatusCard()
     TableLimitsSection()
     Column {
         SettingsGroup {

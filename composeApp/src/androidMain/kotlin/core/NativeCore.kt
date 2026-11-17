@@ -12,7 +12,12 @@ object NativeCore {
         System.loadLibrary("vrcx_0_mobile")
     }
 
-    /** @return `{"port":12345,"token":"..."}` or `{"error":"..."}` */
+    /**
+     * @param filesDir the app's data directory (the database lives here)
+     * @param deviceName what this device reports to remote-sync presence, so the other machines see
+     * a name instead of a bare id
+     * @return `{"port":12345,"token":"..."}` or `{"error":"..."}`
+     */
     @JvmStatic
-    external fun start(filesDir: String): String
+    external fun start(filesDir: String, deviceName: String): String
 }

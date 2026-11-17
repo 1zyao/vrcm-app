@@ -1,5 +1,6 @@
 package io.github.vrcmteam.vrcm.mobilecore
 
+import android.os.Build
 import android.util.Log
 import io.github.vrcmteam.vrcm.core.NativeCore
 import kotlinx.serialization.json.Json
@@ -18,7 +19,14 @@ private var endpoint: VrcxCoreClient? = null
 fun startVrcxCore(filesDir: String): VrcxCoreClient? {
     endpoint?.let { return it }
     return runCatching {
-        val json = NativeCore.start(filesDir)
+        // The core reports this to remote sync, so the desktop's device list shows a phone instead
+        // of a bare id. `Build.MODEL` is the marketing name ("Pixel 7", "MuMu"); the manufacturer
+        // disambiguates models that share a name.
+        val deviceName = listOfNotNull(
+            Build.MANUFACTURER?.takeIf { it.isNotBlank() }?.replaceFirstChar { it.uppercase() },
+            Build.MODEL?.takeIf { it.isNotBlank() },
+        ).joinToString(" ").ifBlank { "Android" }
+        val json = NativeCore.start(filesDir, deviceName)
         val body = Json.parseToJsonElement(json).jsonObject
         val port = body["port"]!!.jsonPrimitive.content.toInt()
         val token = body["token"]!!.jsonPrimitive.content

@@ -21,6 +21,31 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.longOrNull
 
+/** One device sharing the database, as the desktop lists it. */
+data class SyncDeviceVo(
+    val deviceId: String,
+    val name: String,
+    val role: String,
+    val priority: Int,
+    val ipAddress: String,
+    val appVersion: String,
+    val lastSeenAt: String,
+    val seenSecondsAgo: Int,
+    val online: Boolean,
+)
+
+/** One row of "last cycle detail": how many ops this table moved. */
+data class SyncTableOpsVo(val table: String, val pushed: Int, val pulled: Int)
+
+/** One entry of the cycle history. */
+data class SyncCycleVo(
+    val at: String,
+    val durationMs: Int,
+    val pushed: Int,
+    val pulled: Int,
+    val error: String?,
+)
+
 /**
  * What the settings screen shows about VRCX's shared-database sync.
  *
@@ -51,8 +76,12 @@ data class SyncStatusVo(
     val nextCycleInSecs: Int? = null,
     val lastPushedOps: Int = 0,
     val lastPulledOps: Int = 0,
-    /** Other devices sharing this database, as `name (role)`. */
-    val devices: List<String> = emptyList(),
+    /** Every device on this database, including this one. */
+    val devices: List<SyncDeviceVo> = emptyList(),
+    /** Per-table op counts of the newest cycle. */
+    val lastCycleTables: List<SyncTableOpsVo> = emptyList(),
+    /** Newest-first cycle history. */
+    val cycles: List<SyncCycleVo> = emptyList(),
     /** First-run bootstrap, only meaningful while [bootstrapRunning]. */
     val bootstrapRunning: Boolean = false,
     val bootstrapTablesDone: Int = 0,
@@ -165,6 +194,23 @@ class SyncStatusService {
         }
     }
 
+    /** Writes the two transport switches, the way the desktop's connection card does. */
+    suspend fun saveSwitches(tlsVerify: Boolean, allowPlaintext: Boolean) {
+        val current = _status.value
+        configure(
+            host = current.host,
+            port = current.port,
+            user = current.user,
+            password = "",
+            database = current.database,
+            tlsVerify = tlsVerify,
+            allowPlaintext = allowPlaintext,
+            intervalSeconds = current.intervalSeconds,
+            collectorPriority = current.collectorPriority,
+            enabled = current.enabled,
+        )
+    }
+
     /**
      * Turns the engine on or off.
      *
@@ -275,16 +321,39 @@ class SyncStatusService {
             lastPulledOps = statusRoot.int("lastPulledOps"),
             devices = (statusRoot["remoteDevices"] as? JsonArray)
                 ?.mapNotNull { runCatching { it.jsonObject }.getOrNull() }
-                ?.mapNotNull { device ->
-                    val name = (device["deviceName"] as? JsonPrimitive)?.contentOrNull.orEmpty()
-                    val role = (device["role"] as? JsonPrimitive)?.contentOrNull.orEmpty()
-                    when {
-                        name.isBlank() -> null
-                        role.isBlank() -> name
-                        else -> "$name ($role)"
-                    }
+                ?.map { device ->
+                    SyncDeviceVo(
+                        deviceId = device.str("deviceId"),
+                        name = device.str("deviceName"),
+                        role = device.str("role"),
+                        priority = device.int("priority"),
+                        ipAddress = device.str("ipAddr"),
+                        appVersion = device.str("appVersion"),
+                        lastSeenAt = device.str("lastSeenAt"),
+                        seenSecondsAgo = device.int("seenSecondsAgo"),
+                        online = device.bool("online"),
+                    )
                 }
                 .orEmpty(),
+            lastCycleTables = (statusRoot["lastCycleTables"] as? JsonArray)
+                ?.mapNotNull { runCatching { it.jsonObject }.getOrNull() }
+                ?.map { row ->
+                    SyncTableOpsVo(
+                        table = row.str("table"),
+                        pushed = row.int("pushed"),
+                        pulled = row.int("pulled"),
+                    )
+                }
+                .orEmpty(),
+            cycles = history.map { cycle ->
+                SyncCycleVo(
+                    at = cycle.str("at"),
+                    durationMs = cycle.int("durationMs"),
+                    pushed = cycle.int("pushed"),
+                    pulled = cycle.int("pulled"),
+                    error = cycle.str("error").takeIf { it.isNotBlank() },
+                )
+            },
         )
     }
 }
@@ -300,6 +369,8 @@ private fun JsonObject.long(key: String): Long =
 
 private fun JsonObject.int(key: String): Int =
     (this[key] as? JsonPrimitive)?.intOrNull ?: 0
+
+
 
 
 
