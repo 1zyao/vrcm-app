@@ -1211,6 +1211,8 @@ override val notificationInviteRequest = "請求邀請"
     override val settingsSyncBootstrap = "首次同步"
     override val settingsSyncBootstrapProgress = "%tables%/%total% 張表 · %rows%/%rowsTotal% 列"
     override val settingsSyncDevices = "已連線的裝置"
+    override val settingsSyncWritingTag = "正在寫入"
+    override val settingsSyncHealth = "健康度 %score%"
 
     override val settingsTableLimits = "資料表上限"
     override val settingsTableLimitsHint = "每張資料表保留多少列，以及搜尋掃描多少列。"

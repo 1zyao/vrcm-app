@@ -32,7 +32,22 @@ data class SyncDeviceVo(
     val lastSeenAt: String,
     val seenSecondsAgo: Int,
     val online: Boolean,
-)
+    /**
+     * Health score the device advertises (100 healthy, 0 yielded).
+     *
+     * Null when the backend does not send it: the field arrives with the newer health signal, and a
+     * missing value must not be printed as a healthy 100.
+     */
+    val health: Int? = null,
+    /** Why the device reported that score (`healthy`, `websocketUnstable`, `authExpired`, …). */
+    val healthReason: String = "",
+) {
+    /**
+     * Election rank, mirroring `collector_election::effective_priority`: a legacy `forced` row
+     * without a number ranks as 1000 so it outranks any explicit priority.
+     */
+    val collectorRank: Int get() = if (role == "forced" && priority == 0) 1000 else priority
+}
 
 /** One row of "last cycle detail": how many ops this table moved. */
 data class SyncTableOpsVo(val table: String, val pushed: Int, val pulled: Int)
@@ -365,6 +380,10 @@ class SyncStatusService {
                         lastSeenAt = device.str("lastSeenAt"),
                         seenSecondsAgo = device.int("seenSecondsAgo"),
                         online = device.bool("online"),
+                        // Absent until the backend reports the health signal; null keeps it hidden
+                        // rather than claiming a healthy 100 we did not measure.
+                        health = (device["health"] as? JsonPrimitive)?.intOrNull,
+                        healthReason = device.str("healthReason"),
                     )
                 }
                 .orEmpty(),

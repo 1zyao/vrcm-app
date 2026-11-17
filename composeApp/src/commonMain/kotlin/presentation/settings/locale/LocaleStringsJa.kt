@@ -1240,6 +1240,8 @@ override val notificationInviteRequest = "招待リクエスト"
     override val settingsSyncBootstrap = "初回同期"
     override val settingsSyncBootstrapProgress = "%tables%/%total% テーブル · %rows%/%rowsTotal% 行"
     override val settingsSyncDevices = "接続中の端末"
+    override val settingsSyncWritingTag = "書き込み中"
+    override val settingsSyncHealth = "健全性 %score%"
 
     override val settingsTableLimits = "テーブル上限"
     override val settingsTableLimitsHint = "各テーブルに保持する行数と、検索で走査する行数。"

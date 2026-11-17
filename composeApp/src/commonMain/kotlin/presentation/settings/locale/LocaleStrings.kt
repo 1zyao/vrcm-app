@@ -1289,6 +1289,8 @@ sealed class LocaleStrings {
     open val settingsSyncBootstrap: String = "First sync"
     open val settingsSyncBootstrapProgress: String = "%tables%/%total% tables · %rows%/%rowsTotal% rows"
     open val settingsSyncDevices: String = "Connected devices"
+    open val settingsSyncWritingTag: String = "writing"
+    open val settingsSyncHealth: String = "health %score%"
 
     open val settingsTableLimits: String = "Table limits"
     open val settingsTableLimitsHint: String = "How many rows each table keeps, and how far a search scans."

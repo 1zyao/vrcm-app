@@ -267,10 +267,30 @@ internal fun SyncStatusCard() {
                 style = AppTheme.type.body,
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
             )
-            status.devices.forEach { device ->
-                SettingsRowDivider()
-                DeviceEntry(device = device, selfDeviceId = status.deviceId, strings = s)
-            }
+            // Who records live feed right now: the online device with the highest election rank,
+            // ties to the smallest device id. Same rule the desktop uses, so the badge agrees with
+            // what the engine decided (`sync.collectorBlockers` names everyone else).
+            val writer = status.devices
+                .filter { it.online }
+                .minWithOrNull(
+                    compareByDescending<SyncDeviceVo> { it.collectorRank }.thenBy { it.deviceId },
+                )
+            // Online first, then by rank: a switched-off machine still explains why it is not writing.
+            status.devices
+                .sortedWith(
+                    compareByDescending<SyncDeviceVo> { it.online }
+                        .thenByDescending { it.collectorRank }
+                        .thenBy { it.deviceId },
+                )
+                .forEach { device ->
+                    SettingsRowDivider()
+                    DeviceEntry(
+                        device = device,
+                        selfDeviceId = status.deviceId,
+                        isWriter = device.deviceId == writer?.deviceId,
+                        strings = s,
+                    )
+                }
         }
     }
 }
@@ -283,6 +303,7 @@ internal fun SyncStatusCard() {
 private fun DeviceEntry(
     device: SyncDeviceVo,
     selfDeviceId: String,
+    isWriter: Boolean,
     strings: LocaleStrings,
 ) {
     val isSelf = device.deviceId == selfDeviceId
@@ -302,6 +323,9 @@ private fun DeviceEntry(
                 modifier = Modifier.weight(1f),
             )
             if (isSelf) Tag(strings.settingsSyncThisDeviceTag, AppTheme.colors.tint)
+            // The writer is derived from the list itself, exactly as the desktop derives it: the
+            // online device with the highest election rank, ties to the smallest device id.
+            if (isWriter) Tag(strings.settingsSyncWritingTag, AppTheme.colors.success)
             Tag(
                 text = if (device.online) strings.settingsSyncOnline else strings.settingsSyncOffline,
                 color = if (device.online) AppTheme.colors.success else AppTheme.colors.secondaryLabel,
@@ -320,6 +344,15 @@ private fun DeviceEntry(
             style = AppTheme.type.footnote,
             color = AppTheme.colors.secondaryLabel,
         )
+        // Health is capability, priority is intent. Only shown when the backend reports it - a
+        // missing value must not read as a healthy 100.
+        device.health?.let { health ->
+            AppText(
+                text = strings.settingsSyncHealth.replace("%score%", health.toString()),
+                style = AppTheme.type.footnote,
+                color = if (health > 0) AppTheme.colors.success else AppTheme.colors.destructive,
+            )
+        }
         if (!device.online && device.seenSecondsAgo > 0) {
             AppText(
                 text = strings.settingsSyncSeenSeconds

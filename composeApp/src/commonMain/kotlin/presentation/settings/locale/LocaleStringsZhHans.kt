@@ -1212,6 +1212,8 @@ override val notificationInviteRequest = "申请加入"
     override val settingsSyncBootstrap = "首次同步"
     override val settingsSyncBootstrapProgress = "%tables%/%total% 张表 · %rows%/%rowsTotal% 行"
     override val settingsSyncDevices = "已连接的设备"
+    override val settingsSyncWritingTag = "正在写入"
+    override val settingsSyncHealth = "健康度 %score%"
 
     override val settingsTableLimits = "数据表上限"
     override val settingsTableLimitsHint = "每张数据表保留多少行，以及搜索扫描多少行。"
