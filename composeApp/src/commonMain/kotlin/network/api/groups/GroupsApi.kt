@@ -15,6 +15,8 @@ import kotlinx.serialization.builtins.ListSerializer
 import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.groupJoin
 import io.github.vrcmteam.vrcm.mobilecore.groupLeave
+import io.github.vrcmteam.vrcm.mobilecore.groupPostsGet
+import io.github.vrcmteam.vrcm.mobilecore.groupUserInstancesGet
 import io.github.vrcmteam.vrcm.mobilecore.groupMembersGet
 import io.github.vrcmteam.vrcm.mobilecore.groupGet
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
@@ -122,24 +124,35 @@ class GroupsApi(private val client: HttpClient) {
         n: Int = 100,
         offset: Int = 0,
     ): GroupPostData =
-        client.get("$GROUPS_API_PREFIX/$groupId/posts") {
-            parameter("n", n)
-            parameter("offset", offset)
-        }.checkSuccess()
+        // Served by the backend; the response is VRChat's own `{posts, total}` envelope.
+        CoreJson.decodeFromString(
+            GroupPostData.serializer(),
+            vrcxCoreClient().groupPostsGet(groupId, n, offset).bodyOrThrow(),
+        )
 
     suspend fun getGroupInstances(
         userId: String,
         groupId: String,
-    ): GroupInstancesResponse =
-        client.get("$USERS_API_PREFIX/$userId/instances/groups/$groupId")
-            .checkSuccess()
+    ): GroupInstancesResponse {
+        // The backend exposes VRCX's own command, which answers every group instance of a user
+        // (`users/{id}/instances/groups`). The per-group narrowing happens here by matching the
+        // group in each instance's location - which is what VRCX's own frontend does.
+        val all = getUserGroupInstances(userId)
+        return GroupInstancesResponse(
+            instances = all.instances.filter { it.location.contains("group($groupId)") },
+        )
+    }
 
     /** 自己加入的所有群组当前开着的房间，只有本人能查。 */
     suspend fun getUserGroupInstances(userId: String): GroupInstancesResponse =
-        client.get("$USERS_API_PREFIX/$userId/instances/groups")
-            .checkSuccess()
+        CoreJson.decodeFromString(
+            GroupInstancesResponse.serializer(),
+            vrcxCoreClient().groupUserInstancesGet(userId).bodyOrThrow(),
+        )
 
 }
+
+
 
 
 

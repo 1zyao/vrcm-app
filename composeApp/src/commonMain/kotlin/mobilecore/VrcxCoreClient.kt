@@ -593,6 +593,33 @@ suspend fun VrcxCoreClient.searchWorldsGet(
     }
 ).toVrchatResult()
 
+/** A page of group posts (`app__vrchat_group_posts_get`). */
+suspend fun VrcxCoreClient.groupPostsGet(
+    groupId: String,
+    n: Int = 100,
+    offset: Int = 0,
+): VrchatResult = invoke(
+    "app__vrchat_group_posts_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("groupId", groupId)
+            put("n", n)
+            put("offset", offset)
+        })
+    }
+).toVrchatResult()
+
+/**
+ * Every group instance a user is in (`app__vrchat_group_user_instances_get`).
+ *
+ * VRCX's own command answers all groups at once; a caller that wants one group filters on the
+ * instance's location.
+ */
+suspend fun VrcxCoreClient.groupUserInstancesGet(userId: String): VrchatResult = invoke(
+    "app__vrchat_group_user_instances_get",
+    buildJsonObject { put("input", buildJsonObject { put("userId", userId) }) }
+).toVrchatResult()
+
 /**
  * A page of group members (`app__vrchat_group_members_get`).
  *
@@ -716,6 +743,7 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
         })
     }
 )
+
 
 
 
