@@ -1,12 +1,17 @@
 package io.github.vrcmteam.vrcm.network.api.prints
 
 import io.github.vrcmteam.vrcm.network.api.attributes.PRINTS_API_PREFIX
+import io.github.vrcmteam.vrcm.mobilecore.CoreJson
+import io.github.vrcmteam.vrcm.mobilecore.printGet
+import io.github.vrcmteam.vrcm.mobilecore.printsGet
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import io.github.vrcmteam.vrcm.network.api.prints.data.PrintData
 import io.github.vrcmteam.vrcm.network.extensions.checkSuccess
 import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.client.request.forms.*
 import io.ktor.http.*
+import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.Clock
@@ -20,14 +25,23 @@ class PrintsApi(private val client: HttpClient) {
         userId: String,
         n: Int = 100,
         offset: Int = 0,
-    ): List<PrintData> =
-        client.get("$PRINTS_API_PREFIX/user/$userId") {
-            parameter("n", n.coerceIn(1, 100))
-            parameter("offset", offset.coerceAtLeast(0))
-        }.checkSuccess()
+    ): List<PrintData> {
+        // Served by the backend, which takes only `n` (no offset), so paging asks for more and drops
+        // what is already shown. The page size stays capped at 100, the API's own limit.
+        val size = n.coerceIn(1, 100)
+        val skip = offset.coerceAtLeast(0)
+        val rows = CoreJson.decodeFromString(
+            ListSerializer(PrintData.serializer()),
+            vrcxCoreClient().printsGet(userId, n = size + skip).bodyOrThrow(),
+        )
+        return rows.drop(skip).take(size)
+    }
 
     suspend fun getPrint(printId: String): PrintData =
-        client.get("$PRINTS_API_PREFIX/$printId").checkSuccess()
+        CoreJson.decodeFromString(
+            PrintData.serializer(),
+            vrcxCoreClient().printGet(printId).bodyOrThrow(),
+        )
 
     suspend fun uploadPrint(
         imageBytes: ByteArray,
@@ -79,3 +93,5 @@ internal fun vrcPrintTimestamp(
 ): String = instant.toLocalDateTime(timeZone).toString().take(VRCX_TIMESTAMP_LENGTH)
 
 private const val VRCX_TIMESTAMP_LENGTH = 19
+
+
