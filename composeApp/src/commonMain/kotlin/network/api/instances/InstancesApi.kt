@@ -55,7 +55,7 @@ class InstancesApi(private val client: HttpClient) {
         // Through the core (`app__vrchat_instance_create`).
         return CoreJson.decodeFromString(
             InstanceData.serializer(),
-            vrcxCoreClient().instanceCreate(CoreJson.encodeToJsonElement(options)).bodyOrThrow(),
+            vrcxCoreClient().instanceCreate(CoreJson.encodeToJsonElement(options.toCreateInstanceRequest())).bodyOrThrow(),
         )
     }
 }
