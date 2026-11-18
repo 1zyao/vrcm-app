@@ -705,6 +705,46 @@ suspend fun VrcxCoreClient.mediaFilesGet(
  * "立即关闭" action means.
  */
 /** `DELETE avatars/{id}` (`app__vrchat_avatar_delete`). */
+/**
+ * Clear a favorite group (`app__vrchat_favorite_group_clear`).
+ *
+ * `favoriteType` is the enum name the core expects (`avatar` / `world` / `vrcPlusWorld` / `friend`), which is
+ * what the app's `FavoriteType.value` already produces for the three it has.
+ */
+suspend fun VrcxCoreClient.favoriteGroupClear(
+    ownerId: String,
+    favoriteType: String,
+    group: String,
+): VrchatResult = invoke(
+    "app__vrchat_favorite_group_clear",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("ownerId", ownerId)
+            put("favoriteType", favoriteType)
+            put("group", group)
+        })
+    }
+).toVrchatResult()
+
+/** Save a favorite group's display name / visibility (`app__vrchat_favorite_group_save`). */
+suspend fun VrcxCoreClient.favoriteGroupSave(
+    ownerId: String,
+    favoriteType: String,
+    group: String,
+    displayName: String? = null,
+    visibility: String? = null,
+): VrchatResult = invoke(
+    "app__vrchat_favorite_group_save",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("ownerId", ownerId)
+            put("favoriteType", favoriteType)
+            put("group", group)
+            displayName?.let { put("displayName", it) }
+            visibility?.let { put("visibility", it) }
+        })
+    }
+).toVrchatResult()
 suspend fun VrcxCoreClient.avatarDelete(avatarId: String): VrchatResult = invoke(
     "app__vrchat_avatar_delete",
     buildJsonObject { put("input", buildJsonObject { put("avatarId", avatarId) }) }

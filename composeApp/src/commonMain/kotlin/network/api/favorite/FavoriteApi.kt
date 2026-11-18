@@ -33,6 +33,8 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toCollection
 
+import io.github.vrcmteam.vrcm.mobilecore.favoriteGroupClear
+import io.github.vrcmteam.vrcm.mobilecore.favoriteGroupSave
 class FavoriteApi(private val client: HttpClient) {
 
     fun fetchFavorite(
@@ -135,17 +137,8 @@ class FavoriteApi(private val client: HttpClient) {
         favoriteGroupName: String,
         userId: String,
     ) {
-        client.delete {
-            url {
-                path(
-                    FAVORITE_API_PREFIX,
-                    "group",
-                    favoriteType.value,
-                    favoriteGroupName,
-                    userId,
-                )
-            }
-        }.checkSuccess { Unit }
+        // Through the core (`app__vrchat_favorite_group_clear`).
+        vrcxCoreClient().favoriteGroupClear(userId, favoriteType.value, favoriteGroupName).bodyOrThrow()
     }
 
     /**
@@ -169,19 +162,14 @@ class FavoriteApi(private val client: HttpClient) {
         displayName: String,
         visibility: FavoriteGroupVisibility,
     ) {
-        client.put {
-            url {
-                path(
-                    FAVORITE_API_PREFIX,
-                    "group",
-                    favoriteType.value,
-                    favoriteGroupName,
-                    userId,
-                )
-            }
-            contentType(ContentType.Application.Json)
-            setBody(UpdateFavoriteGroupRequest(displayName, visibility))
-        }.checkSuccess { Unit }
+        // Through the core (`app__vrchat_favorite_group_save`).
+        vrcxCoreClient().favoriteGroupSave(
+            ownerId = userId,
+            favoriteType = favoriteType.value,
+            group = favoriteGroupName,
+            displayName = displayName,
+            visibility = visibility.value,
+        ).bodyOrThrow()
     }
 
 }
