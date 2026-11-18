@@ -557,7 +557,9 @@ class AuthService(
             }
         } ?: throw VrcxCoreException(
             "noUser",
-            "the backend did not return a user for this login"
+            // Naming the readiness makes this diagnosable from the screen alone: this exact error appeared on
+            // iOS while the real cause was that nothing ever called `StartVrcxCore()`.
+            "the backend did not return a user for this login (core ready=${isVrcxCoreReady()})"
         )
         // Used as-is: the backend's user payload is already complete, and enriching it
         // would issue extra requests that this layer is supposed to no longer make.
@@ -614,12 +616,19 @@ class AuthService(
         val isAccountSwitch = activeUserId != null && activeUserId != targetUserId
         if (restoreStoredCookies) applyAuthCookie(username)
         return try {
-            // Login goes through the in-process VRCX-0 core whenever it is up:
-            // the core owns the HTTP call, the cookie jar and the 2FA state
-            // machine, so this app no longer talks to VRChat itself. The old
-            // path stays compiled as a fallback for builds where the core did
-            // not start.
-            val state = if (isVrcxCoreReady()) {
+            // Login goes through the in-process VRCX-0 core, which owns the HTTP call, the cookie jar and the
+            // 2FA state machine. There is deliberately no fallback any more: the old path used to reach VRChat
+            // directly for the first factor, which "worked" far enough to show a 2FA screen and then failed
+            // when `emitAuthed` asked for the user payload only the core returns. Failing here, before the
+            // user types a password, is the difference between a clear error and a mystery two screens later.
+            if (!isVrcxCoreReady()) {
+                throw VrcxCoreException(
+                    "coreNotReady",
+                    "the in-process core is not running, so login is unavailable " +
+                        "(core ready=${isVrcxCoreReady()})"
+                )
+            }
+            val state = run {
                 val core = runCatching { vrcxCoreClient().loginBasic(username, password) }
                     .onFailure { println("[VrcxCore] login failed: ${it::class.simpleName}: ${it.message}") }
                     .getOrThrow()
@@ -629,8 +638,6 @@ class AuthService(
                 pendingCoreUserJson = core.userJson
                 pendingCoreAttemptId = core.attemptId
                 core.state
-            } else {
-                authApi.login(username, password)
             }
             try {
                 state.also {
