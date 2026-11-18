@@ -371,6 +371,32 @@ suspend fun VrcxCoreClient.searchGroupsGet(params: JsonObject): VrchatResult = i
  * `instanceSelfInvite` takes a location (`wrld_x:inst`), which the core splits into world + instance; the
  * API wants them separately, and the phone only ever has the location.
  */
+/**
+ * Invite a user into an instance, through the social notification chain.
+ *
+ * Not the plain invite API: the chain sends the request and writes the local notification row, which is
+ * why the desktop's `inviteUser` goes this way. The caller has a location (`wrld_x:inst`); the command
+ * wants the two halves plus the world name for the row.
+ */
+suspend fun VrcxCoreClient.instanceInviteSend(
+    receiverUserId: String,
+    location: String,
+    worldName: String = "",
+    messageSlot: Int? = null,
+    imageData: String = "",
+): VrchatResult = invoke(
+    "app__notification_instance_invite_send",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("receiverUserId", receiverUserId)
+            put("instanceId", location.substringAfter(':', ""))
+            put("worldId", location.substringBefore(':'))
+            put("worldName", worldName)
+            if (messageSlot != null) put("messageSlot", messageSlot)
+            put("imageData", imageData)
+        })
+    }
+).toVrchatResult()
 suspend fun VrcxCoreClient.requestInviteSend(
     receiverUserId: String,
     requestSlot: Int = 0,

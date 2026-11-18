@@ -21,19 +21,36 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
+import io.github.vrcmteam.vrcm.mobilecore.instanceInviteSend
 import io.github.vrcmteam.vrcm.mobilecore.instanceSelfInvite
 import io.github.vrcmteam.vrcm.mobilecore.requestInviteSend
 import io.github.vrcmteam.vrcm.mobilecore.inviteMessagesGet
 import io.github.vrcmteam.vrcm.mobilecore.inviteMessageEdit
 class InviteApi(private val client: HttpClient) {
 
-    suspend fun inviteUser(userId: String, instanceId: String, messageSlot: Int = 0): VRChatResponse {
+    suspend fun inviteUser(
+        userId: String,
+        instanceId: String,
+        messageSlot: Int = 0,
+        worldName: String = "",
+    ): VRChatResponse {
         requireValidSlot(messageSlot)
         requireValidInviteLocation(instanceId)
-        return client.post("$INVITE_API_PREFIX/$userId") {
-            contentType(ContentType.Application.Json)
-            setBody(InviteUserRequest(instanceId = instanceId, messageSlot = messageSlot))
-        }.checkSuccess()
+        // Through the social notification chain, like the desktop: the invite is sent and the local
+        // notification row is written in the same step.
+        vrcxCoreClient()
+            .instanceInviteSend(
+                receiverUserId = userId,
+                location = instanceId,
+                worldName = worldName,
+                messageSlot = messageSlot,
+            )
+            .bodyOrThrow()
+        // `VRChatResponse` is VRChat's error/success envelope. The core command already raised on failure,
+        // so reaching here means the chain accepted the invite.
+        return VRChatResponse(
+            success = VRChatResponse.VRChatResult(message = "", statusCode = 200),
+        )
     }
 
     /** Sends a Gallery PNG as an invite attachment using VRChat's multipart contract. */
