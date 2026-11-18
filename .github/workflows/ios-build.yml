@@ -19,9 +19,10 @@ concurrency:
 
 jobs:
   build:
-    # macos-15 is the current supported image. macos-13 was removed long ago and macos-14 was retired from
-# GitHub Actions on 2026-11-02, which is why a job sent to either of those simply never left the queue.
-runs-on: macos-15
+    # macos-15 is the current supported image. macos-13 was removed (support ended 2025-12-04) and every
+    # macOS 14 image was retired from GitHub Actions on 2026-11-02, so jobs sent to either of those sat in
+    # the queue forever instead of failing.
+    runs-on: macos-15
 
     steps:
       - name: Checkout app
