@@ -471,6 +471,9 @@ class NotificationCenterModel(
             val response = invitePhotoResponseService.respond(
                 sessionToken = activeToken,
                 notificationId = item.id,
+                // The chain's target comes from the row (desktop's `toNotificationTarget`), not from guesses.
+                notificationType = item.type,
+                senderUserId = item.senderUserId,
                 imageBytes = imageBytes,
             )
         ) {

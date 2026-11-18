@@ -378,6 +378,38 @@ suspend fun VrcxCoreClient.searchGroupsGet(params: JsonObject): VrchatResult = i
  * why the desktop's `inviteUser` goes this way. The caller has a location (`wrld_x:inst`); the command
  * wants the two halves plus the world name for the row.
  */
+/**
+ * Answer an invite, optionally with a photo, through the social chain.
+ *
+ * The chain needs a notification target (`id` + `version` + `type` + `senderUserId`), and the desktop
+ * derives it from the notification row itself - `toNotificationTarget` in its
+ * `notificationActionService.ts` reads exactly those four fields. Same here: the caller has the row, so no
+ * field has to be guessed.
+ */
+suspend fun VrcxCoreClient.inviteResponseSend(
+    ownerUserId: String,
+    notificationId: String,
+    notificationType: String,
+    senderUserId: String,
+    responseSlot: Int,
+    imageData: String = "",
+    version: Int = 0,
+): VrchatResult = invoke(
+    "app__notification_invite_response_send",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("ownerUserId", ownerUserId)
+            put("target", buildJsonObject {
+                put("id", notificationId)
+                put("version", version)
+                put("type", notificationType)
+                put("senderUserId", senderUserId)
+            })
+            put("responseSlot", responseSlot)
+            put("imageData", imageData)
+        })
+    }
+).toVrchatResult()
 suspend fun VrcxCoreClient.instanceInviteSend(
     receiverUserId: String,
     location: String,

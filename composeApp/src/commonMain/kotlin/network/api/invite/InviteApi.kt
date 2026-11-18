@@ -23,6 +23,7 @@ import kotlinx.serialization.json.Json
 
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import io.github.vrcmteam.vrcm.mobilecore.instanceInviteSend
+import io.github.vrcmteam.vrcm.mobilecore.inviteResponseSend
 import io.github.vrcmteam.vrcm.mobilecore.instanceSelfInvite
 import io.github.vrcmteam.vrcm.mobilecore.requestInviteSend
 import io.github.vrcmteam.vrcm.mobilecore.inviteMessagesGet
@@ -106,8 +107,17 @@ class InviteApi(private val client: HttpClient) {
     }
 
     /** Responds to an invite or request-invite notification with a PNG from Gallery. */
+    /**
+     * Responds to an invite notification with a PNG from Gallery.
+     *
+     * Through the social chain, which needs the notification target. The desktop builds that from the row
+     * itself (`toNotificationTarget`), so callers pass the row's type and sender rather than the id alone -
+     * inventing them would mark the wrong notification resolved.
+     */
     suspend fun respondInviteWithPhoto(
         notificationId: String,
+        notificationType: String,
+        senderUserId: String,
         responseSlot: Int,
         imageBytes: ByteArray,
     ): String {
@@ -117,26 +127,22 @@ class InviteApi(private val client: HttpClient) {
         }
         require(imageBytes.hasPngSignature()) { "Invite response image must be a PNG file" }
 
-        return client.submitFormWithBinaryData(
-            url = "$INVITE_API_PREFIX/$notificationId/response/photo",
-            formData = formData {
-                append(
-                    key = "data",
-                    value = Json.encodeToString(InviteResponseRequest(responseSlot)),
-                    headers = Headers.build {
-                        append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                    },
-                )
-                append(
-                    key = "image",
-                    value = imageBytes,
-                    headers = Headers.build {
-                        append(HttpHeaders.ContentType, ContentType.Image.PNG.toString())
-                        append(HttpHeaders.ContentDisposition, "filename=\"image.png\"")
-                    },
-                )
-            },
-        ).checkSuccess { bodyAsText() }
+        val ownerUserId = io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
+            .currentSession.value?.account?.userId
+            ?: throw io.github.vrcmteam.vrcm.mobilecore.VrcxCoreException(
+                "noSession",
+                "no authenticated session for invite response",
+            )
+        return vrcxCoreClient()
+            .inviteResponseSend(
+                ownerUserId = ownerUserId,
+                notificationId = notificationId,
+                notificationType = notificationType,
+                senderUserId = senderUserId,
+                responseSlot = responseSlot,
+                imageData = "data:image/png;base64," + Base64.Default.encode(imageBytes),
+            )
+            .bodyOrThrow()
     }
 
     suspend fun getInviteMessages(

@@ -44,11 +44,19 @@ class InvitePhotoResponseService(
     internal suspend fun respond(
         sessionToken: AccountSessionToken,
         notificationId: String,
+        notificationType: String,
+        senderUserId: String,
         imageBytes: ByteArray,
         responseSlot: Int = DEFAULT_RESPONSE_SLOT,
     ): InvitePhotoSessionResult<String> {
         val response = authService.runSessionBoundCatching(sessionToken) {
-            inviteApi.respondInviteWithPhoto(notificationId, responseSlot, imageBytes)
+            inviteApi.respondInviteWithPhoto(
+                notificationId = notificationId,
+                notificationType = notificationType,
+                senderUserId = senderUserId,
+                responseSlot = responseSlot,
+                imageBytes = imageBytes,
+            )
         } ?: return InvitePhotoSessionResult.SessionChanged
         return InvitePhotoSessionResult.Completed(response.result, response.sessionToken)
     }
