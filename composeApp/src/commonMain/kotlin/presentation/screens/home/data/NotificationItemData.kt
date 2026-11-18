@@ -134,6 +134,17 @@ internal fun List<NotificationItemData>.indexOfNotificationTarget(targetId: Stri
     }
 }
 
+/**
+ * Which of the two notification tables this row lives in: 1 for pipeline rows, 2 for the legacy ones.
+ *
+ * The core stores that number in a `version` column, and the notification chain wants it in its target; the
+ * desktop sends the same value straight from the row.
+ */
+val NotificationItemData.notificationVersion: Int
+    get() = when (source) {
+        NotificationSource.PIPELINE -> 1
+        NotificationSource.LEGACY -> 2
+    }
 internal enum class NotificationResponseTarget {
     BOOP_USER_API,
     NOTIFICATION_API,

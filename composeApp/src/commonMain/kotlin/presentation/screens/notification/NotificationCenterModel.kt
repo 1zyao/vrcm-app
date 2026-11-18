@@ -296,7 +296,7 @@ class NotificationCenterModel(
                         notificationAction(item, token) { notificationApi.acceptFriendRequest(item.id) }
                     } else {
                         notificationAction(item, token) {
-                            notificationApi.responseNotification(item.id, action)
+                            notificationApi.responseNotification(item, action)
                         }
                     }
                 }
@@ -554,7 +554,7 @@ class NotificationCenterModel(
     private suspend fun deleteRemoteNotification(item: NotificationItemData) {
         when (item.source) {
             NotificationSource.PIPELINE -> notificationApi.deleteNotificationV2(item.id)
-            NotificationSource.LEGACY -> notificationApi.deleteNotification(item.id)
+            NotificationSource.LEGACY -> notificationApi.deleteNotification(item)
         }
     }
 

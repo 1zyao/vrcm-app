@@ -8,6 +8,10 @@ import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.VrcxCoreException
 import io.github.vrcmteam.vrcm.mobilecore.notificationListQuery
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
+import io.github.vrcmteam.vrcm.presentation.screens.home.data.notificationVersion
+import io.github.vrcmteam.vrcm.mobilecore.notificationRespondAndExpire
+import io.github.vrcmteam.vrcm.mobilecore.notificationHideAndExpire
+import io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -32,16 +36,31 @@ class NotificationApi(
         notificationRows(limit = limit, filters = emptyList()).mapNotNull { it.toNotificationData() }
 
 
-    suspend fun responseNotification(id: String, response: NotificationItemData.ActionData): String =
-        client.post("$NOTIFICATIONS_API_PREFIX/$id/respond") {
-            contentType(ContentType.Application.Json)
-            setBody(
-                RespondNotificationRequest(
-                    responseData = response.data,
-                    responseType = response.type,
-                ),
+    /**
+     * Answers a notification through the social chain (`app__notification_respond_and_expire`).
+     *
+     * Takes the row rather than its id because the chain needs a notification target, and the row is where
+     * the desktop reads those fields from (`toNotificationTarget`). `version` distinguishes the pipeline
+     * rows (1) from the legacy ones (2).
+     */
+    suspend fun responseNotification(
+        item: NotificationItemData,
+        response: NotificationItemData.ActionData,
+    ): String {
+        val session = SharedFlowCentre.currentSession.value?.account?.userId
+            ?: throw VrcxCoreException("noSession", "no authenticated session for notification response")
+        return vrcxCoreClient()
+            .notificationRespondAndExpire(
+                ownerUserId = session,
+                notificationId = item.id,
+                version = item.notificationVersion,
+                notificationType = item.type,
+                senderUserId = item.senderUserId,
+                responseType = response.type,
+                responseData = response.data,
             )
-        }.checkSuccess { bodyAsText() }
+            .bodyOrThrow()
+    }
 
 
     suspend fun fetchNotificationsV2(
@@ -82,18 +101,26 @@ class NotificationApi(
     }
 
     /** Hides a notification returned by the legacy `/auth/user/notifications` API. */
-    suspend fun deleteNotification(notificationId: String): VRChatResponse =
-        client.put {
-            url {
-                path(
-                    AUTH_API_PREFIX,
-                    USER_API_PREFIX,
-                    NOTIFICATIONS_API_PREFIX,
-                    notificationId,
-                    "hide"
-                )
-            }
-        }.checkSuccess()
+    /**
+     * Hides a notification and expires it locally (`app__notification_hide_and_expire`).
+     *
+     * The old call was `PUT auth/user/notifications/{id}/hide`: remote only. The chain also removes the row,
+     * which is what the UI already assumed after removing it from the list.
+     */
+    suspend fun deleteNotification(item: NotificationItemData): VRChatResponse {
+        val session = SharedFlowCentre.currentSession.value?.account?.userId
+            ?: throw VrcxCoreException("noSession", "no authenticated session for notification hide")
+        vrcxCoreClient()
+            .notificationHideAndExpire(
+                ownerUserId = session,
+                notificationId = item.id,
+                version = item.notificationVersion,
+                notificationType = item.type,
+                senderUserId = item.senderUserId,
+            )
+            .bodyOrThrow()
+        return VRChatResponse(success = VRChatResponse.VRChatResult(message = "", statusCode = 200))
+    }
 
 
     suspend fun clearAllNotifications(): VRChatResponse =

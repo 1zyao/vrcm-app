@@ -387,6 +387,58 @@ suspend fun VrcxCoreClient.searchGroupsGet(params: JsonObject): VrchatResult = i
  * field has to be guessed.
  */
 /** `GET auth/user/avatarmoderations` (`app__vrchat_avatar_moderations_get`). */
+/**
+ * Hide a notification and expire it locally (`app__notification_hide_and_expire`).
+ *
+ * The chain needs the notification target, and the row carries it: `version` is 1 for the pipeline rows
+ * and 2 for the legacy ones, which is what the core keeps in that column.
+ */
+suspend fun VrcxCoreClient.notificationHideAndExpire(
+    ownerUserId: String,
+    notificationId: String,
+    version: Int,
+    notificationType: String,
+    senderUserId: String,
+): VrchatResult = invoke(
+    "app__notification_hide_and_expire",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("ownerUserId", ownerUserId)
+            put("target", buildJsonObject {
+                put("id", notificationId)
+                put("version", version)
+                put("type", notificationType)
+                put("senderUserId", senderUserId)
+            })
+        })
+    }
+).toVrchatResult()
+
+/** Answer a notification, then expire it (`app__notification_respond_and_expire`). */
+suspend fun VrcxCoreClient.notificationRespondAndExpire(
+    ownerUserId: String,
+    notificationId: String,
+    version: Int,
+    notificationType: String,
+    senderUserId: String,
+    responseType: String,
+    responseData: String = "",
+): VrchatResult = invoke(
+    "app__notification_respond_and_expire",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("ownerUserId", ownerUserId)
+            put("target", buildJsonObject {
+                put("id", notificationId)
+                put("version", version)
+                put("type", notificationType)
+                put("senderUserId", senderUserId)
+            })
+            put("responseType", responseType)
+            put("responseData", responseData)
+        })
+    }
+).toVrchatResult()
 suspend fun VrcxCoreClient.avatarModerationsGet(): VrchatResult =
     invoke("app__vrchat_avatar_moderations_get").toVrchatResult()
 
