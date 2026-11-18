@@ -692,6 +692,21 @@ suspend fun VrcxCoreClient.mediaFilesGet(
  * The backend's request takes only `n` - there is no offset - so paging asks for more and drops what
  * is already shown.
  */
+/**
+ * `PUT worlds/{id}` (`app__vrchat_world_save`).
+ *
+ * `params` is the update document as JSON: the core validates it against `WorldUpdateRequest`, which is the
+ * same shape the app's `WorldUpdateData` serializes to.
+ */
+suspend fun VrcxCoreClient.worldSave(worldId: String, params: JsonElement): VrchatResult = invoke(
+    "app__vrchat_world_save",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("worldId", worldId)
+            put("params", params)
+        })
+    }
+).toVrchatResult()
 /** `DELETE worlds/{id}` (`app__vrchat_world_delete`). */
 suspend fun VrcxCoreClient.worldDelete(worldId: String): VrchatResult = invoke(
     "app__vrchat_world_delete",
