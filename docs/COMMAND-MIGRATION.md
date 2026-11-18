@@ -84,9 +84,14 @@
 
 | 位置 | 为什么 |
 | --- | --- |
-| `FileApi.uploadFile` / `uploadImageFile` / `uploadAvatarGalleryImage` | multipart 请求体，核心侧要专门的媒体上传管线（桌面有 `LocalMediaUploadAdapter`）。桌面端有 `app__vrchat_media_asset_upload` / `_gallery_image_upload` / `_avatar_gallery_image_upload` 等命令，但形状未逐一核对，尚未接入。 |
-| `PrintsApi.uploadPrint` | **已核对，形状不兼容**：核心的 `print_upload_input` 只把 `PrintUploadParams { note, timestamp }` 作为 post data，而手机端这一处还发 `worldId` / `worldName`。迁过去会让拍立得失去世界关联。要接入需先给 `PrintUploadParams` 补这两个字段（改共享 crate）。 |
+| `PrintsApi.uploadPrint` | **已核对，形状不兼容**：核心的 `print_upload_input` 只把 `PrintUploadParams { note, timestamp }` 作为 post data，而手机端这一处还发 `worldId` / `worldName`。迁过去会让拍立得失去世界关联。 |
+| `FileApi.uploadImageFile` | 发 `file` + `tag` + `animationStyle` / `maskTag` / `frames` / `framesOverTime`；核心的 `MediaAssetUploadRequest` 各变体只有 `image_data`。桌面端的 `app__vrchat_media_gallery_image_upload` 存在但形状未覆盖这些参数。 |
+| `FileApi.uploadAvatarGalleryImage` | 同上，另外带 `galleryId`；核心对应命令 `app__vrchat_media_avatar_gallery_image_upload` 的形状未覆盖。 |
+| `FileApi.uploadFile` | 发 `file` + `tag` + **任意 mimeType**；核心没有"通用文件"变体（只有 Gallery/Icons/Emojis/Stickers/Prints 这些图像类）。 |
 | `FileApi.findImageFileLocal` / `getFileInfo` | 文件元信息读取，桌面端对应的是 `app__file_metadata_get`（本地文件），形状不同。 |
+
+即：E 类 5 处全部是**形状不兼容**，而不是"还没接"。要接任何一处，都得先给共享 crate 的请求类型补字段
+（`PrintUploadParams.worldId`、`MediaAssetUploadRequest` 的动画/画廊参数、或一个通用文件变体）。
 
 ## 关于"最终删除 network/api/*"
 
