@@ -19,10 +19,9 @@ concurrency:
 
 jobs:
   build:
-    # macos-13 is the Intel pool: cross-compiling to aarch64-apple-ios does not need an arm64 host (same
-    # Xcode SDK, same rust target), and the arm64 pool was refusing to hand out runners at all
-    # ("job was not acquired by Runner of type hosted ... capacity constraints").
-    runs-on: macos-13
+    # macos-15 is the current supported image. macos-13 was removed long ago and macos-14 was retired from
+# GitHub Actions on 2026-11-02, which is why a job sent to either of those simply never left the queue.
+runs-on: macos-15
 
     steps:
       - name: Checkout app
