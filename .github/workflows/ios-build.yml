@@ -1,6 +1,7 @@
 name: iOS Build CI
 
-# 在 macOS runner 上验证 iOS：编译 Rust 核心 → 静态库 → cinterop → Framework 链接。
+# 在 macOS runner 上产出一个可安装的未签名 iOS 包：编译 Rust 核心 → 静态库 → cinterop →
+# xcodebuild archive（Kotlin/Native 由 Xcode 的 Compile Kotlin Framework 阶段链接一次）→ ad-hoc 签名打包 IPA。
 # 只保留手动触发：macOS 分钟按 10 倍计费，没必要挂在每个 PR 上。
 on:
   workflow_dispatch:
@@ -23,6 +24,16 @@ jobs:
     # macOS 14 image was retired from GitHub Actions on 2026-11-02, so jobs sent to either of those sat in
     # the queue forever instead of failing.
     runs-on: macos-15
+
+    # `gradle.properties` asks for `-Xmx8192M` - more heap than this runner has (3 vCPU / 7 GB). The Gradle
+    # daemon then thrashes instead of failing, which is why the same link took 33 minutes once and 57 the
+    # next time. These caps travel through the environment because the Kotlin framework is now built by
+    # Xcode's run-script phase, which invokes `./gradlew` with no arguments of its own.
+    env:
+      GRADLE_OPTS: >-
+        -Dorg.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8
+        -Dorg.gradle.workers.max=1 -Dkotlin.daemon.jvmargs=-Xmx3g
+      JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8
 
     steps:
       - name: Checkout app
@@ -63,21 +74,6 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build the iOS Release framework (with the core assertion)
-        # One link, not two. The debug framework used to be linked here purely as the stub guard, which cost
-        # 27 minutes on a 3 vCPU / 7 GB runner - and then the archive linked Release anyway. The same guard
-        # runs against the Release log below.
-        run: |
-          # `pipefail` matters: without it the exit status of the pipeline is tee's, so a failed Kotlin
-          # compile would sail through as a green step. That is exactly what happened once already.
-          set -o pipefail
-          ./gradlew :composeApp:linkReleaseFrameworkIosArm64 --no-daemon --console=plain \
-            --stacktrace --max-workers=1 2>&1 | tee /tmp/ios-build.log
-          # The build prints which VrcxCoreBridge it compiled. Assert it, because a skipped cinterop still
-          # produces a linking framework - against the stub - and would otherwise look like success.
-          grep -q "VRCX core for iOS: iosCore (static library present)" /tmp/ios-build.log \
-            || { echo "::error::the core was not compiled into iOS (stub variant selected)"; grep "VRCX core for iOS" /tmp/ios-build.log || true; exit 1; }
-
       - name: Confirm cinterop was wired
         if: ${{ inputs.build_core }}
         # If the guard silently skipped cinterop the framework still links - but against the stub. This
@@ -87,8 +83,14 @@ jobs:
           echo "core archive: $(stat -f%z composeApp/src/nativeInterop/cinterop/vrcx_core.a) bytes"
           ls composeApp/build/classes/kotlin/iosArm64/main/cinterop 2>/dev/null || true
 
-      - name: List iOS Framework files (for debugging)
-        run: find . -path "*ComposeApp.framework" -type d
+      # There used to be a `linkReleaseFrameworkIosArm64` step here. It was removed because it duplicated the
+      # work Xcode does anyway: the target's "Compile Kotlin Framework" run-script phase invokes
+      # `./gradlew :composeApp:embedAndSignAppleFrameworkForXcode` during `xcodebuild archive`, and that runs
+      # the same native link. Two links of the same code cost ~50 minutes each on this runner.
+      #
+      # The stub guard it carried is not lost: it asserted that the build printed
+      # "VRCX core for iOS: iosCore (static library present)". The verification step below asserts something
+      # stronger - that `vrcx_core_start` is actually present in the linked framework binary inside the IPA.
 
       # Everything below is the unsigned-device-IPA path, and it only makes sense when the core was
       # compiled in: without it the app would install and then fail to reach a core that is not there.
@@ -101,6 +103,9 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p artifacts
+          # `-quiet` keeps the log readable but still prints warnings/errors; Gradle's own output from the
+          # Kotlin framework phase arrives through the run-script phase and is buffered, which is why this
+          # step can look silent for a long time.
           xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
             -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/VRCM.xcarchive" \
