@@ -63,15 +63,16 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build iOS Framework with Gradle
-        # 验证 Kotlin/Native 编译与 Framework 链接，不生成或签名 IPA。
+      - name: Build the iOS Release framework (with the core assertion)
+        # One link, not two. The debug framework used to be linked here purely as the stub guard, which cost
+        # 27 minutes on a 3 vCPU / 7 GB runner - and then the archive linked Release anyway. The same guard
+        # runs against the Release log below.
         run: |
           # `pipefail` matters: without it the exit status of the pipeline is tee's, so a failed Kotlin
           # compile would sail through as a green step. That is exactly what happened once already.
           set -o pipefail
-          ./gradlew :composeApp:linkDebugFrameworkIosArm64 --stacktrace --max-workers=1 \
-            -Dorg.gradle.jvmargs="-Xmx2048M -Dfile.encoding=UTF-8" \
-            -Pkotlin.daemon.jvmargs=-Xmx4096M 2>&1 | tee /tmp/ios-build.log
+          ./gradlew :composeApp:linkReleaseFrameworkIosArm64 --no-daemon --console=plain \
+            --stacktrace --max-workers=1 2>&1 | tee /tmp/ios-build.log
           # The build prints which VrcxCoreBridge it compiled. Assert it, because a skipped cinterop still
           # produces a linking framework - against the stub - and would otherwise look like success.
           grep -q "VRCX core for iOS: iosCore (static library present)" /tmp/ios-build.log \
@@ -95,15 +96,6 @@ jobs:
       # The recipe is the one `release.yml` already uses for release IPAs, minus signing: archive with
       # `CODE_SIGNING_ALLOWED=NO`, then let `iosApp/package-ipa.sh` ad-hoc sign and zip the Payload.
       # Ad-hoc is enough for SideStore / AltStore to re-sign on the device.
-      - name: Build the iOS Release framework for the archive
-        if: ${{ inputs.build_core }}
-        run: |
-          set -euo pipefail
-          # Stream Native diagnostics and release the Gradle heap before Xcode starts. Xcode's embed task
-          # reuses this framework through Gradle's up-to-date checks.
-          ./gradlew :composeApp:linkReleaseFrameworkIosArm64 \
-            --no-daemon --console=plain --stacktrace --max-workers=1
-
       - name: Archive and package an unsigned device IPA
         if: ${{ inputs.build_core }}
         run: |

@@ -14,6 +14,12 @@ headers = vrcx_core.h
 headerFilter = vrcx_core.h
 package = io.github.vrcmteam.vrcm.core.cinterop
 
+# The archive itself. Without this line cinterop only parses the header: the declarations exist, the symbols
+# never enter the link, and the failure surfaces late - `_vrcx_core_start not found` at the final app link -
+# instead of here. `libraryPaths = .` is relative to this file.
+staticLibraries = libvrcx_0_mobile_core.a
+libraryPaths = .
+
 # Rust's static libraries need the system frameworks the host pulls in:
 #   CoreFoundation / Security  - keychain and TLS roots
 #   SystemConfiguration        - network reachability

@@ -46,7 +46,12 @@ kotlin {
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "ComposeApp"
-            isStatic = true
+            // Dynamic, and that is load-bearing: the VRCX core ships as a Rust static library
+            // (`libvrcx_0_mobile_core.a`). A *static* ComposeApp.framework does not absorb cinterop
+            // static libraries - it leaves their symbols undefined until the final app link, which then
+            // fails with `_vrcx_core_start` not found. Linking the framework dynamically puts the archive
+            // into the framework binary, so the app links against a framework that already defines them.
+            isStatic = false
         }
 
         if (hasVrcxCore) {
