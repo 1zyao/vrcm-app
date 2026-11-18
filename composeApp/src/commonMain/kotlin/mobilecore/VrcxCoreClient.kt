@@ -698,6 +698,28 @@ suspend fun VrcxCoreClient.mediaFilesGet(
  * `params` is the update document as JSON: the core validates it against `WorldUpdateRequest`, which is the
  * same shape the app's `WorldUpdateData` serializes to.
  */
+/**
+ * `DELETE instances/{location}` (`app__vrchat_instance_close`).
+ *
+ * `hardClose = true` closes the instance now rather than when it empties, which is what the app's
+ * "立即关闭" action means.
+ */
+suspend fun VrcxCoreClient.instanceClose(location: String, hardClose: Boolean = true): VrchatResult =
+    invoke(
+        "app__vrchat_instance_close",
+        buildJsonObject {
+            put("input", buildJsonObject {
+                put("location", location)
+                put("hardClose", hardClose)
+            })
+        }
+    ).toVrchatResult()
+
+/** `POST instances` (`app__vrchat_instance_create`); `params` is the create document as JSON. */
+suspend fun VrcxCoreClient.instanceCreate(params: JsonElement): VrchatResult = invoke(
+    "app__vrchat_instance_create",
+    buildJsonObject { put("input", buildJsonObject { put("params", params) }) }
+).toVrchatResult()
 /** `POST users/{id}/boop` (`app__vrchat_boop_send`). */
 suspend fun VrcxCoreClient.boopSend(
     userId: String,

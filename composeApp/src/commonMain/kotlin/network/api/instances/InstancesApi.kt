@@ -15,6 +15,9 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 
 
+import io.github.vrcmteam.vrcm.mobilecore.instanceClose
+import io.github.vrcmteam.vrcm.mobilecore.instanceCreate
+import kotlinx.serialization.json.encodeToJsonElement
 class InstancesApi(private val client: HttpClient) {
     /**
      * 通过位置获取单个实例信息
@@ -41,15 +44,19 @@ class InstancesApi(private val client: HttpClient) {
      */
     suspend fun closeInstance(worldId: String, instanceId: String): InstanceCloseResponse {
         val location = "$worldId:$instanceId"
-        return client.delete { url { path(INSTANCES_API_SUFFIX, location) } }
-            .checkSuccess()
+        // Through the core (`app__vrchat_instance_close`, hard close - see the helper).
+        return CoreJson.decodeFromString(
+            InstanceCloseResponse.serializer(),
+            vrcxCoreClient().instanceClose(location).bodyOrThrow(),
+        )
     }
 
     suspend fun createInstance(options: InstanceCreationOptions): InstanceData {
-        return client.post(INSTANCES_API_SUFFIX) {
-            contentType(ContentType.Application.Json)
-            setBody(options.toCreateInstanceRequest())
-        }.checkSuccess()
+        // Through the core (`app__vrchat_instance_create`).
+        return CoreJson.decodeFromString(
+            InstanceData.serializer(),
+            vrcxCoreClient().instanceCreate(CoreJson.encodeToJsonElement(options)).bodyOrThrow(),
+        )
     }
 }
 
