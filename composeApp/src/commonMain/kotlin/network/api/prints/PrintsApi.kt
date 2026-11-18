@@ -4,6 +4,7 @@ import io.github.vrcmteam.vrcm.network.api.attributes.PRINTS_API_PREFIX
 import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.printGet
 import io.github.vrcmteam.vrcm.mobilecore.printsGet
+import io.github.vrcmteam.vrcm.mobilecore.mediaPrintDelete
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import io.github.vrcmteam.vrcm.network.api.prints.data.PrintData
 import io.github.vrcmteam.vrcm.network.extensions.checkSuccess
@@ -73,7 +74,8 @@ class PrintsApi(private val client: HttpClient) {
      * @param printId 拍立得ID
      */
     suspend fun deletePrint(printId: String) {
-        client.delete("$PRINTS_API_PREFIX/$printId").checkSuccess<Unit>()
+        // Through the core (`app__vrchat_media_print_delete`).
+        vrcxCoreClient().mediaPrintDelete(printId).bodyOrThrow()
     }
 
     private fun ByteArray.hasPngSignature(): Boolean = size >= PNG_SIGNATURE.size &&

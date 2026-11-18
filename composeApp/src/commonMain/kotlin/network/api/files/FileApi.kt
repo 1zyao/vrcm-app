@@ -19,6 +19,7 @@ import io.ktor.client.plugins.onUpload
 import io.ktor.http.*
 
 
+import io.github.vrcmteam.vrcm.mobilecore.mediaFileDelete
 class FileApi(private val client: HttpClient) {
 
     companion object {
@@ -217,7 +218,8 @@ class FileApi(private val client: HttpClient) {
      * @param fileId 文件ID
      */
     suspend fun deleteFile(fileId: String) {
-        client.delete("$FILE_API_PREFIX/$fileId").checkSuccess<Unit>()
+        // Through the core (`app__vrchat_media_file_delete`).
+        vrcxCoreClient().mediaFileDelete(fileId).bodyOrThrow()
     }
 }
 

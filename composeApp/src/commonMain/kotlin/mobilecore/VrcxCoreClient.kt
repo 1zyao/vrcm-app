@@ -692,6 +692,17 @@ suspend fun VrcxCoreClient.mediaFilesGet(
  * The backend's request takes only `n` - there is no offset - so paging asks for more and drops what
  * is already shown.
  */
+/** `DELETE file/{fileId}` (`app__vrchat_media_file_delete`). */
+suspend fun VrcxCoreClient.mediaFileDelete(fileId: String): VrchatResult = invoke(
+    "app__vrchat_media_file_delete",
+    buildJsonObject { put("input", buildJsonObject { put("fileId", fileId) }) }
+).toVrchatResult()
+
+/** `DELETE prints/{printId}` (`app__vrchat_media_print_delete`). */
+suspend fun VrcxCoreClient.mediaPrintDelete(printId: String): VrchatResult = invoke(
+    "app__vrchat_media_print_delete",
+    buildJsonObject { put("input", buildJsonObject { put("printId", printId) }) }
+).toVrchatResult()
 suspend fun VrcxCoreClient.printsGet(userId: String, n: Int = 100): VrchatResult = invoke(
     "app__vrchat_media_prints_get",
     buildJsonObject { put("input", buildJsonObject { put("userId", userId); put("n", n) }) }
