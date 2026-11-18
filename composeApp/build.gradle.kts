@@ -58,6 +58,14 @@ kotlin {
             iosTarget.compilations.getByName("main").cinterops.create("vrcxCore") {
                 defFile(layout.projectDirectory.file("src/nativeInterop/cinterop/vrcx_core.def"))
                 includeDirs(layout.projectDirectory.dir("src/nativeInterop/cinterop"))
+                // Where `libvrcx_0_mobile_core.a` lives. It cannot be a `libraryPaths` entry in the .def:
+                // that is resolved against cinterop's working directory, not the .def file, and failed with
+                // "Could not find 'libvrcx_0_mobile_core.a' in neither of [.]". An absolute path from
+                // Gradle is unambiguous.
+                extraOpts(
+                    "-libraryPath",
+                    layout.projectDirectory.dir("src/nativeInterop/cinterop").asFile.absolutePath,
+                )
             }
         }
     }
