@@ -24,6 +24,22 @@ kotlin {
         }
     }
 
+    // The VRCX-0 core's static library, produced on macOS:
+    //   cargo build --target aarch64-apple-ios --release -p vrcx-0-mobile-core --lib
+    //   copy target/aarch64-apple-ios/release/libvrcx_0_mobile_core.a → src/nativeInterop/cinterop/vrcx_core.a
+    // (see docs/FORK-DELTA.md §8). Its presence decides two things below: whether the cinterop is
+    // registered at all, and which VrcxCoreBridge implementation is compiled.
+    val vrcxCoreLib = layout.projectDirectory
+        .file("src/nativeInterop/cinterop/vrcx_core.a").asFile
+    val hasVrcxCore = vrcxCoreLib.exists()
+
+    // Printed, not assumed: the CI asserts on this line, because a silently skipped cinterop would still
+    // produce a linking framework - against the stub - and look like success.
+    println(
+        "VRCX core for iOS: " +
+            if (hasVrcxCore) "iosCore (static library present)" else "iosStub (no static library)"
+    )
+
     listOf(
         iosArm64(),
         iosSimulatorArm64()
@@ -33,14 +49,7 @@ kotlin {
             isStatic = true
         }
 
-        // The VRCX-0 core's static library, produced on macOS:
-        //   cargo build --target aarch64-apple-ios --release
-        //   copy target/aarch64-apple-ios/release/libvrcx_0_mobile.a → src/nativeInterop/cinterop/vrcx_core.a
-        // (see docs/FORK-DELTA.md §8). Guarded so an Android/desktop build — and an iOS build on a
-        // machine that has not produced the library yet — is unaffected instead of failing to configure.
-        val coreLib = layout.projectDirectory
-            .file("src/nativeInterop/cinterop/vrcx_core.a").asFile
-        if (coreLib.exists()) {
+        if (hasVrcxCore) {
             iosTarget.compilations.getByName("main").cinterops.create("vrcxCore") {
                 defFile(layout.projectDirectory.file("src/nativeInterop/cinterop/vrcx_core.def"))
                 includeDirs(layout.projectDirectory.dir("src/nativeInterop/cinterop"))
@@ -49,6 +58,18 @@ kotlin {
     }
 
     sourceSets {
+        // Exactly one of these provides `VrcxCoreBridge` for the Apple targets: the real implementation
+        // calls into the static library through cinterop, the stub reports that the core is not built in.
+        // Choosing by file presence keeps `compileKotlinIosArm64` working on machines without an iOS
+        // toolchain (Windows), where the cinterop cannot exist at all.
+        //
+        // `matching {}.all {}` rather than `getByName`: `iosMain` is created by the default hierarchy
+        // template after configuration, and it has to be the shared set (MainViewController lives there
+        // and can only see declarations from its own set and its parents).
+        matching { it.name == "iosMain" }.all {
+            kotlin.srcDir(if (hasVrcxCore) "src/iosCore/kotlin" else "src/iosStub/kotlin")
+        }
+
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
             implementation(libs.zxing.embedded)

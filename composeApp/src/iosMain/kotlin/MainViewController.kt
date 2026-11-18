@@ -4,6 +4,7 @@ package io.github.vrcmteam.vrcm
 import androidx.compose.ui.window.ComposeUIViewController
 import io.github.vrcmteam.vrcm.di.commonModules
 import io.github.vrcmteam.vrcm.di.modules.platformModule
+import io.github.vrcmteam.vrcm.mobilecore.startVrcxCore
 import io.github.vrcmteam.vrcm.presentation.screens.meetup.display.MeetupPresentationRootViewController
 import org.koin.core.context.startKoin
 import platform.UIKit.UIViewController
@@ -21,4 +22,15 @@ fun MainViewController(): UIViewController =
 fun StartKoin() = startKoin {
     printLogger()
     modules(commonModules + platformModule)
+}
+
+/**
+ * Starts the in-process core once, before any screen asks for a client.
+ *
+ * Mirrors the Android entry point: the call is a no-op when a remote backend is configured
+ * (`VrcxBackend.baseUrlOverride`), and returns null when this binary was built without the core - in
+ * which case the UI runs on whatever the remote backend provides.
+ */
+fun StartVrcxCore() {
+    startVrcxCore()
 }
