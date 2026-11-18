@@ -698,6 +698,60 @@ suspend fun VrcxCoreClient.mediaFilesGet(
  * `params` is the update document as JSON: the core validates it against `WorldUpdateRequest`, which is the
  * same shape the app's `WorldUpdateData` serializes to.
  */
+/** `POST users/{id}/boop` (`app__vrchat_boop_send`). */
+suspend fun VrcxCoreClient.boopSend(
+    userId: String,
+    emojiId: String = "",
+    inventoryItemId: String = "",
+): VrchatResult = invoke(
+    "app__vrchat_boop_send",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("userId", userId)
+            put("emojiId", emojiId)
+            put("inventoryItemId", inventoryItemId)
+        })
+    }
+).toVrchatResult()
+
+/** `POST user/{id}/note` (`app__vrchat_tools_user_note_save`). */
+suspend fun VrcxCoreClient.userNoteSave(targetUserId: String, note: String): VrchatResult = invoke(
+    "app__vrchat_tools_user_note_save",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("targetUserId", targetUserId)
+            put("note", note)
+        })
+    }
+).toVrchatResult()
+
+/** `GET users/{userId}/{worldId}/persist/exists` (`app__vrchat_world_persistent_data_exists`). */
+suspend fun VrcxCoreClient.worldPersistentDataExists(
+    userId: String,
+    worldId: String,
+): VrchatResult = invoke(
+    "app__vrchat_world_persistent_data_exists",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("userId", userId)
+            put("worldId", worldId)
+        })
+    }
+).toVrchatResult()
+
+/** `DELETE users/{userId}/{worldId}/persist` (`app__vrchat_world_persistent_data_delete`). */
+suspend fun VrcxCoreClient.worldPersistentDataDelete(
+    userId: String,
+    worldId: String,
+): VrchatResult = invoke(
+    "app__vrchat_world_persistent_data_delete",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("userId", userId)
+            put("worldId", worldId)
+        })
+    }
+).toVrchatResult()
 suspend fun VrcxCoreClient.worldSave(worldId: String, params: JsonElement): VrchatResult = invoke(
     "app__vrchat_world_save",
     buildJsonObject {

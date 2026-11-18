@@ -31,6 +31,10 @@ import io.ktor.client.statement.*
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 
+import io.github.vrcmteam.vrcm.mobilecore.boopSend
+import io.github.vrcmteam.vrcm.mobilecore.userNoteSave
+import io.github.vrcmteam.vrcm.mobilecore.worldPersistentDataExists
+import io.github.vrcmteam.vrcm.mobilecore.worldPersistentDataDelete
 class UsersApi(private val client: HttpClient) {
 
     suspend fun fetchUser(userId: String): UserData =
@@ -113,38 +117,28 @@ class UsersApi(private val client: HttpClient) {
         }.checkSuccess()
 
     suspend fun hasWorldPersistence(userId: String, worldId: String): Boolean {
-        val response = client.get("$USERS_API_PREFIX/$userId/$worldId/persist/exists")
-        return when (response.status) {
-            HttpStatusCode.OK -> true
-            HttpStatusCode.NotFound -> false
-            else -> response.checkSuccess { true }
-        }
+        // Through the core (`app__vrchat_world_persistent_data_exists`): the command answers `{status, data}`,
+        // and VRChat signals "no persistence" with 404, which `bodyOrThrow` turns into an exception.
+        return runCatching { vrcxCoreClient().worldPersistentDataExists(userId, worldId).bodyOrThrow() }
+            .isSuccess
     }
 
     suspend fun deleteWorldPersistence(userId: String, worldId: String) {
-        val response = client.delete("$USERS_API_PREFIX/$userId/$worldId/persist")
-        when (response.status) {
-            HttpStatusCode.OK, HttpStatusCode.NotFound -> Unit
-            else -> response.checkSuccess { Unit }
-        }
+        // Through the core (`app__vrchat_world_persistent_data_delete`); a missing row is not an error.
+        runCatching { vrcxCoreClient().worldPersistentDataDelete(userId, worldId).bodyOrThrow() }
     }
 
-    suspend fun saveUserNote(targetUserId: String, note: String): String =
-        client.post(USER_NOTES_API_PREFIX) {
-            setBody(mapOf("targetUserId" to targetUserId, "note" to note))
-            contentType(ContentType.Application.Json)
-        }.checkSuccess { bodyAsText() }
+    suspend fun saveUserNote(targetUserId: String, note: String): String {
+        // Through the core (`app__vrchat_tools_user_note_save`).
+        return vrcxCoreClient().userNoteSave(targetUserId, note).bodyOrThrow()
+    }
 
-    suspend fun boop(userId: String, emojiId: String? = null): VRChatResponse =
-        client.post("$USERS_API_PREFIX/$userId/boop") {
-            contentType(ContentType.Application.Json)
-            val normalizedEmojiId = emojiId?.trim().orEmpty()
-            if (normalizedEmojiId.isEmpty()) {
-                setBody(emptyMap<String, String>())
-            } else {
-                setBody(BoopData(emojiId = normalizedEmojiId))
-            }
-        }.checkSuccess()
+    suspend fun boop(userId: String, emojiId: String? = null): VRChatResponse {
+        // Through the core (`app__vrchat_boop_send`); the command raises on failure, so reaching the
+        // next line means VRChat accepted the boop.
+        vrcxCoreClient().boopSend(userId, emojiId?.trim().orEmpty()).bodyOrThrow()
+        return VRChatResponse(success = VRChatResponse.VRChatResult(message = "", statusCode = 200))
+    }
 
     internal suspend fun getPlayerInteractionSnapshot(userId: String): PlayerInteractionSnapshot {
         requireValidModerationUserId(userId)
