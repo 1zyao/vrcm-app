@@ -27,6 +27,9 @@ import io.ktor.client.request.*
 import io.ktor.http.*
 
 import io.github.vrcmteam.vrcm.mobilecore.groupRepresentationSet
+import io.github.vrcmteam.vrcm.mobilecore.searchGroupsGet
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 class GroupsApi(private val client: HttpClient) {
 
     suspend fun fetchGroup(groupId: String, includeRoles: Boolean = false, purpose: String = "other") =
@@ -40,12 +43,19 @@ class GroupsApi(private val client: HttpClient) {
         query: String? = null,
         n: Int = 20,
         offset: Int = 0,
-    ): List<LimitedGroup> =
-        client.get(GROUPS_API_PREFIX) {
-            query?.takeIf { it.isNotBlank() }?.let { parameter("query", it) }
-            parameter("n", n)
-            parameter("offset", offset)
-        }.checkSuccess()
+    ): List<LimitedGroup> {
+        // Through the core (`app__vrchat_search_groups_get`).
+        return CoreJson.decodeFromString(
+            ListSerializer(LimitedGroup.serializer()),
+            vrcxCoreClient().searchGroupsGet(
+                buildJsonObject {
+                    query?.takeIf { it.isNotBlank() }?.let { put("query", it) }
+                    put("n", n)
+                    put("offset", offset)
+                },
+            ).bodyOrThrow(),
+        )
+    }
 
     suspend fun joinGroup(
         groupId: String,
