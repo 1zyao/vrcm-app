@@ -1,41 +1,33 @@
 package io.github.vrcmteam.vrcm.network.api.avatars
 
+import io.github.vrcmteam.vrcm.mobilecore.avatarModerationDelete
+import io.github.vrcmteam.vrcm.mobilecore.avatarModerationSend
+import io.github.vrcmteam.vrcm.mobilecore.avatarModerationsGet
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import io.github.vrcmteam.vrcm.network.api.avatars.data.AvatarModerationData
-import io.github.vrcmteam.vrcm.network.api.avatars.data.AVATAR_BLOCK_MODERATION_TYPE
-import io.github.vrcmteam.vrcm.network.api.avatars.data.CreateAvatarModerationRequest
-import io.github.vrcmteam.vrcm.network.extensions.checkSuccess
 import io.ktor.client.HttpClient
-import io.ktor.client.request.delete
-import io.ktor.client.request.get
-import io.ktor.client.request.parameter
-import io.ktor.client.request.post
-import io.ktor.client.request.setBody
-import io.ktor.http.ContentType
-import io.ktor.http.contentType
+import kotlinx.serialization.json.Json
 
+/**
+ * Avatar blocking, through the core's `app__vrchat_avatar_moderation_*` commands.
+ *
+ * The three endpoints (`GET`/`POST`/`DELETE auth/user/avatarmoderations`) are what the desktop exposes as
+ * `app__vrchat_avatar_moderations_get`, `_send` and `_delete`. The core builds those requests from the
+ * protocol, so nothing here assembles HTTP any more; `client` stays only because the DI graph constructs
+ * this class with it.
+ */
 internal class AvatarModerationApi(private val client: HttpClient) {
+    private val json = Json { ignoreUnknownKeys = true }
+
     suspend fun getAvatarModerations(): List<AvatarModerationData> =
-        client.get(AVATAR_MODERATIONS_PATH).checkSuccess()
+        vrcxCoreClient().avatarModerationsGet().bodyOrThrow()
+            .let { body -> json.decodeFromString<List<AvatarModerationData>>(body) }
 
     suspend fun blockAvatar(avatarId: String): AvatarModerationData =
-        client.post(AVATAR_MODERATIONS_PATH) {
-            contentType(ContentType.Application.Json)
-            setBody(
-                CreateAvatarModerationRequest(
-                    avatarModerationType = AVATAR_BLOCK_MODERATION_TYPE,
-                    targetAvatarId = avatarId,
-                )
-            )
-        }.checkSuccess()
+        vrcxCoreClient().avatarModerationSend(avatarId).bodyOrThrow()
+            .let { body -> json.decodeFromString<AvatarModerationData>(body) }
 
     suspend fun unblockAvatar(avatarId: String) {
-        client.delete(AVATAR_MODERATIONS_PATH) {
-            parameter("targetAvatarId", avatarId)
-            parameter("avatarModerationType", AVATAR_BLOCK_MODERATION_TYPE)
-        }.checkSuccess { Unit }
-    }
-
-    private companion object {
-        const val AVATAR_MODERATIONS_PATH = "auth/user/avatarmoderations"
+        vrcxCoreClient().avatarModerationDelete(avatarId).bodyOrThrow()
     }
 }

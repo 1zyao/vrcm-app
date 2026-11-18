@@ -386,6 +386,21 @@ suspend fun VrcxCoreClient.searchGroupsGet(params: JsonObject): VrchatResult = i
  * `notificationActionService.ts` reads exactly those four fields. Same here: the caller has the row, so no
  * field has to be guessed.
  */
+/** `GET auth/user/avatarmoderations` (`app__vrchat_avatar_moderations_get`). */
+suspend fun VrcxCoreClient.avatarModerationsGet(): VrchatResult =
+    invoke("app__vrchat_avatar_moderations_get").toVrchatResult()
+
+/** `POST auth/user/avatarmoderations` (`app__vrchat_avatar_moderation_send`). */
+suspend fun VrcxCoreClient.avatarModerationSend(avatarId: String): VrchatResult = invoke(
+    "app__vrchat_avatar_moderation_send",
+    buildJsonObject { put("input", buildJsonObject { put("avatarId", avatarId) }) }
+).toVrchatResult()
+
+/** `DELETE auth/user/avatarmoderations` (`app__vrchat_avatar_moderation_delete`). */
+suspend fun VrcxCoreClient.avatarModerationDelete(avatarId: String): VrchatResult = invoke(
+    "app__vrchat_avatar_moderation_delete",
+    buildJsonObject { put("input", buildJsonObject { put("avatarId", avatarId) }) }
+).toVrchatResult()
 suspend fun VrcxCoreClient.inviteResponseSend(
     ownerUserId: String,
     notificationId: String,
