@@ -711,6 +711,26 @@ suspend fun VrcxCoreClient.mediaFilesGet(
  * `favoriteType` is the enum name the core expects (`avatar` / `world` / `vrcPlusWorld` / `friend`), which is
  * what the app's `FavoriteType.value` already produces for the three it has.
  */
+/**
+ * `PUT groups/{groupId}/members/{userId}` (`app__vrchat_group_member_props_set`).
+ *
+ * The patch is `GroupMemberPatch`, whose `isSubscribedToAnnouncements` is what the app's announcement toggle
+ * sets. `managerNotes` / `visibility` exist upstream but this call site never sends them.
+ */
+suspend fun VrcxCoreClient.groupMemberPropsSet(
+    groupId: String,
+    userId: String,
+    params: JsonElement,
+): VrchatResult = invoke(
+    "app__vrchat_group_member_props_set",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("groupId", groupId)
+            put("userId", userId)
+            put("params", params)
+        })
+    }
+).toVrchatResult()
 suspend fun VrcxCoreClient.favoriteGroupClear(
     ownerId: String,
     favoriteType: String,

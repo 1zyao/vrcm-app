@@ -30,6 +30,8 @@ import io.github.vrcmteam.vrcm.mobilecore.groupRepresentationSet
 import io.github.vrcmteam.vrcm.mobilecore.searchGroupsGet
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import io.github.vrcmteam.vrcm.mobilecore.groupMemberPropsSet
+import kotlinx.serialization.json.encodeToJsonElement
 class GroupsApi(private val client: HttpClient) {
 
     suspend fun fetchGroup(groupId: String, includeRoles: Boolean = false, purpose: String = "other") =
@@ -87,11 +89,20 @@ class GroupsApi(private val client: HttpClient) {
         groupId: String,
         userId: String,
         enabled: Boolean,
-    ): GroupMember =
-        client.put("$GROUPS_API_PREFIX/$groupId/members/$userId") {
-            contentType(ContentType.Application.Json)
-            setBody(UpdateGroupMemberNotificationsRequest(enabled))
-        }.checkSuccess()
+    ): GroupMember {
+        // Through the core (`app__vrchat_group_member_props_set`). The patch is `GroupMemberPatch`, whose
+        // `isSubscribedToAnnouncements` is the toggle this call site sets.
+        return CoreJson.decodeFromString(
+            GroupMember.serializer(),
+            vrcxCoreClient().groupMemberPropsSet(
+                groupId = groupId,
+                userId = userId,
+                params = CoreJson.encodeToJsonElement(
+                    buildJsonObject { put("isSubscribedToAnnouncements", enabled) },
+                ),
+            ).bodyOrThrow(),
+        )
+    }
 
     suspend fun getGroupMembers(
         groupId: String,
