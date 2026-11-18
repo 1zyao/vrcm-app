@@ -20,6 +20,11 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
+import io.github.vrcmteam.vrcm.mobilecore.instanceSelfInvite
+import io.github.vrcmteam.vrcm.mobilecore.requestInviteSend
+import io.github.vrcmteam.vrcm.mobilecore.inviteMessagesGet
+import io.github.vrcmteam.vrcm.mobilecore.inviteMessageEdit
 class InviteApi(private val client: HttpClient) {
 
     suspend fun inviteUser(userId: String, instanceId: String, messageSlot: Int = 0): VRChatResponse {
@@ -64,16 +69,22 @@ class InviteApi(private val client: HttpClient) {
         ).checkSuccess { Unit }
     }
 
+    /**
+     * Invites the signed-in user into `instanceId` (a full location).
+     *
+     * Through the core's `app__vrchat_instance_self_invite`: that command takes world and instance
+     * separately and answers in the `{status, data}` envelope, so the location is split here and the body
+     * decoded.
+     */
     suspend fun inviteMyselfToInstance(instanceId: String): InviteMyselfData =
-        client.post("$INVITE_API_PREFIX/myself/to/$instanceId")
-            .checkSuccess()
+        vrcxCoreClient().instanceSelfInvite(instanceId).bodyOrThrow().let { body ->
+            Json.decodeFromString<InviteMyselfData>(body)
+        }
 
     suspend fun requestInvite(userId: String, requestSlot: Int = 0) {
         requireValidSlot(requestSlot)
-        client.post("$REQUEST_INVITE_API_PREFIX/$userId") {
-            contentType(ContentType.Application.Json)
-            setBody(RequestInviteRequest(requestSlot))
-        }.checkSuccess { Unit }
+        // `app__vrchat_request_invite_send`; the envelope's body is empty on success.
+        vrcxCoreClient().requestInviteSend(userId, requestSlot).bodyOrThrow()
     }
 
     /** Responds to an invite or request-invite notification with a PNG from Gallery. */
@@ -115,8 +126,10 @@ class InviteApi(private val client: HttpClient) {
         messageType: InviteMessageType,
     ): List<InviteMessageData> {
         requireValidUserId(userId)
-        return client.get("message/$userId/${messageType.pathValue}")
-            .checkSuccess<List<InviteMessageData>>()
+        // `app__vrchat_tools_invite_messages_get`.
+        return vrcxCoreClient().inviteMessagesGet(userId, messageType.pathValue)
+            .bodyOrThrow()
+            .let { body -> Json.decodeFromString<List<InviteMessageData>>(body) }
             .also { validateInviteMessages(it, messageType) }
     }
 
@@ -150,10 +163,11 @@ class InviteApi(private val client: HttpClient) {
         require(message.inviteMessageCodePointCount() <= MAX_INVITE_MESSAGE_CODE_POINTS) {
             "Invite message must not exceed $MAX_INVITE_MESSAGE_CODE_POINTS characters"
         }
-        return client.put("message/$userId/${messageType.pathValue}/$slot") {
-            contentType(ContentType.Application.Json)
-            setBody(UpdateInviteMessageRequest(message))
-        }.checkSuccess<List<InviteMessageData>>()
+        // `app__vrchat_tools_invite_message_edit`.
+        return vrcxCoreClient()
+            .inviteMessageEdit(userId, messageType.pathValue, slot, message)
+            .bodyOrThrow()
+            .let { body -> Json.decodeFromString<List<InviteMessageData>>(body) }
             .also { validateInviteMessages(it, messageType) }
     }
 

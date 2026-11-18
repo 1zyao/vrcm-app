@@ -365,6 +365,68 @@ suspend fun VrcxCoreClient.searchGroupsGet(params: JsonObject): VrchatResult = i
 ).toVrchatResult()
 
 /** A single user by id (`GET users/{id}`). */
+/**
+ * Invite commands, mirroring the desktop's `app__vrchat_*` invite commands.
+ *
+ * `instanceSelfInvite` takes a location (`wrld_x:inst`), which the core splits into world + instance; the
+ * API wants them separately, and the phone only ever has the location.
+ */
+suspend fun VrcxCoreClient.requestInviteSend(
+    receiverUserId: String,
+    requestSlot: Int = 0,
+): VrchatResult = invoke(
+    "app__vrchat_request_invite_send",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("receiverUserId", receiverUserId)
+            put("params", buildJsonObject { put("requestSlot", requestSlot) })
+        })
+    }
+).toVrchatResult()
+
+suspend fun VrcxCoreClient.instanceSelfInvite(
+    location: String,
+    shortName: String = "",
+): VrchatResult = invoke(
+    "app__vrchat_instance_self_invite",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("worldId", location.substringBefore(':'))
+            put("instanceId", location.substringAfter(':', ""))
+            put("shortName", shortName)
+        })
+    }
+).toVrchatResult()
+
+suspend fun VrcxCoreClient.inviteMessagesGet(
+    currentUserId: String,
+    messageType: String,
+): VrchatResult = invoke(
+    "app__vrchat_tools_invite_messages_get",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("currentUserId", currentUserId)
+            put("messageType", messageType)
+        })
+    }
+).toVrchatResult()
+
+suspend fun VrcxCoreClient.inviteMessageEdit(
+    currentUserId: String,
+    messageType: String,
+    slot: Int,
+    message: String,
+): VrchatResult = invoke(
+    "app__vrchat_tools_invite_message_edit",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("currentUserId", currentUserId)
+            put("messageType", messageType)
+            put("slot", slot)
+            put("message", message)
+        })
+    }
+).toVrchatResult()
 suspend fun VrcxCoreClient.userGet(userId: String): VrchatResult = invoke(
     "app__vrchat_user_get",
     buildJsonObject { put("input", buildJsonObject { put("userId", userId) }) }

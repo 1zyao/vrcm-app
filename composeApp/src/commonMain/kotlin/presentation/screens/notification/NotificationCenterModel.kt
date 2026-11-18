@@ -194,7 +194,14 @@ class NotificationCenterModel(
                 val friend = friendService.friendMap[notification.senderUserId]
                 NotificationItemData(
                     n = notification,
-                    imageUrl = user?.iconUrl ?: friend?.iconUrl.orEmpty(),
+                    // The desktop's order is row → friend roster → profile lookup. The enrichment above
+                    // already is that lookup, but it drops failures on purpose ("omitted from batch
+                    // results"), and a friend request usually comes from someone who is not a friend yet -
+                    // so a failed batch leaves exactly those rows without an avatar. One direct fetch for
+                    // the rows that are still empty covers it.
+                    imageUrl = user?.iconUrl?.takeIf { it.isNotBlank() }
+                        ?: friend?.iconUrl?.takeIf { it.isNotBlank() }
+                        ?: fetchSenderIcon(notification.senderUserId),
                     title = user?.displayName
                         ?: friend?.displayName
                         ?: notification.senderUsername?.takeIf { it.isNotBlank() }
@@ -207,6 +214,15 @@ class NotificationCenterModel(
             }
         }
 
+    /**
+     * The desktop's last step for an actor image: ask for the profile.
+     *
+     * Only reached when the row and the friend roster have nothing, which is the normal case for a friend
+     * request - the sender is not a friend yet. Failure is fine and yields no image.
+     */
+    private suspend fun fetchSenderIcon(userId: String): String =
+        runCatching { usersApi.fetchUser(userId).iconUrl }.getOrNull()?.takeIf { it.isNotBlank() }.orEmpty()
+
     private suspend fun loadNotifications(): Result<List<NotificationItemData>> =
         authService.reTryAuthCatching { notificationApi.fetchNotifications() }
             .mapCatching { data ->
@@ -216,7 +232,7 @@ class NotificationCenterModel(
                         displayName = friend.displayName,
                     )
                 }
-                boopNotificationResolver.resolve(
+                val resolved = boopNotificationResolver.resolve(
                     notifications = data.map(::NotificationItemData),
                     friends = friendPresentations,
                 ) { userId ->
@@ -224,6 +240,20 @@ class NotificationCenterModel(
                         NotificationUserPresentation(
                             imageUrl = user.iconUrl,
                             displayName = user.displayName,
+                        )
+                    }
+                }
+                // The boop resolver only fills in boops by design; invites and friend requests go through
+                // here with no actor image at all, because their rows carry no picture. Same order as the
+                // desktop: friend roster first, then a profile lookup.
+                resolved.map { item ->
+                    if (item.imageUrl.isNotBlank()) {
+                        item
+                    } else {
+                        val roster = friendService.friendMap[item.senderUserId]?.iconUrl
+                            ?.takeIf { it.isNotBlank() }
+                        item.copy(
+                            imageUrl = roster ?: fetchSenderIcon(item.senderUserId),
                         )
                     }
                 }
