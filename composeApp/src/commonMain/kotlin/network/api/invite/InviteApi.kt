@@ -18,6 +18,7 @@ import io.ktor.client.statement.bodyAsText
 import io.ktor.http.*
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
+import kotlin.io.encoding.Base64
 import kotlinx.serialization.json.Json
 
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
@@ -53,12 +54,19 @@ class InviteApi(private val client: HttpClient) {
         )
     }
 
-    /** Sends a Gallery PNG as an invite attachment using VRChat's multipart contract. */
+    /**
+     * Sends a Gallery PNG as an invite attachment.
+     *
+     * Through the same social chain as [inviteUser]: the chain hands `imageData` to the core's media
+     * preprocessor, so the bytes travel as the data URL it expects (`data:image/png;base64,…`) instead of a
+     * multipart body assembled here.
+     */
     suspend fun inviteUserWithPhoto(
         userId: String,
         instanceId: String,
         imageBytes: ByteArray,
         messageSlot: Int = 0,
+        worldName: String = "",
     ) {
         require(userId.isNotBlank()) { "userId must not be blank" }
         requireValidInviteLocation(instanceId)
@@ -68,22 +76,15 @@ class InviteApi(private val client: HttpClient) {
             "Invite image exceeds $MAX_INVITE_IMAGE_BYTES bytes"
         }
 
-        client.submitFormWithBinaryData(
-            url = "$INVITE_API_PREFIX/$userId/photo",
-            formData = formData {
-                append(
-                    key = "data",
-                    value = Json.encodeToString(InvitePhotoRequest(instanceId, messageSlot)),
-                    headers = Headers.build {
-                        append(HttpHeaders.ContentType, ContentType.Application.Json.toString())
-                    },
-                )
-                append("image", imageBytes, Headers.build {
-                    append(HttpHeaders.ContentType, ContentType.Image.PNG.toString())
-                    append(HttpHeaders.ContentDisposition, "filename=\"image.png\"")
-                })
-            },
-        ).checkSuccess { Unit }
+        vrcxCoreClient()
+            .instanceInviteSend(
+                receiverUserId = userId,
+                location = instanceId,
+                worldName = worldName,
+                messageSlot = messageSlot,
+                imageData = "data:image/png;base64," + Base64.Default.encode(imageBytes),
+            )
+            .bodyOrThrow()
     }
 
     /**
