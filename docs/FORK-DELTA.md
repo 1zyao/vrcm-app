@@ -323,7 +323,7 @@ commonMain/kotlin/mobilecore/VrcxBackend.kt:15:6  Unresolved reference 'Volatile
 
 也就是说：**除了"在 macOS 上把静态库编出来"这一步，其余已经做完并验证。**
 
-#### 剩下的 macOS 步骤（照抄即可）
+#### 如果确实要在本机 Mac 上跑一遍
 
 ```bash
 # 1. 装 target
