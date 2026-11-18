@@ -36,7 +36,13 @@ import androidx.compose.ui.graphics.vector.rememberVectorPainter
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.ui.draw.clip
+import io.github.vrcmteam.vrcm.network.api.worlds.data.WorldData
+import io.github.vrcmteam.vrcm.presentation.designsystem.AppShapes
+import kotlinx.serialization.json.Json
 import io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
+
 import io.github.vrcmteam.vrcm.presentation.compoments.AdvancedOptionsPanel
 import io.github.vrcmteam.vrcm.presentation.compoments.SearchTextField
 import io.github.vrcmteam.vrcm.presentation.compoments.animateScrollToTab
@@ -72,6 +78,9 @@ import io.github.vrcmteam.vrcm.presentation.supports.Pager
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import org.koin.compose.viewmodel.koinViewModel
+
+/** Instance rows carry the full world object; decode it when a row is opened. */
+private val hotWorldJson = Json { ignoreUnknownKeys = true }
 
 object SearchListPager : Pager {
     override val index: Int = 2
@@ -109,6 +118,7 @@ fun PublicSearchContent(
     val users by model.userSearchList.collectAsState()
     val worlds by model.worldSearchList.collectAsState()
     val groups by model.groupSearchList.collectAsState()
+    val hotWorlds by model.hot.worlds.collectAsState()
     val worldSearchOptions by model.worldSearchOptions.collectAsState()
     val groupHasMore by model.groupHasMore.collectAsState()
     val isLoadingGroups by model.isLoadingGroups.collectAsState()
@@ -122,6 +132,7 @@ fun PublicSearchContent(
     val userListState = rememberLazyListState()
     val worldListState = rememberLazyListState()
     val groupListState = rememberLazyListState()
+    val hotListState = rememberLazyListState()
     val pagerState = rememberPagerState(
         initialPage = selectedTab.tabIndex,
         pageCount = { PublicSearchTab.entries.size },
@@ -177,7 +188,7 @@ fun PublicSearchContent(
     Column(modifier.fillMaxSize()) {
         PublicSearchTabRow(
             pagerState = pagerState,
-            tabs = listOf(strings.users, strings.worlds, strings.groups),
+            tabs = listOf(strings.users, strings.worlds, strings.groups, strings.explore),
         )
         SearchTextField(
             modifier = Modifier.fillMaxWidth().padding(start = 16.dp, top = 12.dp, end = 16.dp),
@@ -192,19 +203,23 @@ fun PublicSearchContent(
             val tab = PublicSearchTab.fromTabIndex(page)
             val query = queriesByType.getValue(tab.searchType)
             val loadState = loadStates.getValue(tab.searchType)
+            // 探索 keeps its own list and load state: no query, no paging, one load.
+            val hotLoadState by model.hot.loadState.collectAsState()
             val resultCount = when (tab) {
                 PublicSearchTab.User -> users.size
                 PublicSearchTab.World -> worlds.size
                 PublicSearchTab.Group -> groups.size
+                PublicSearchTab.Hot -> hotWorlds.size
             }
             val listState = when (tab) {
                 PublicSearchTab.User -> userListState
                 PublicSearchTab.World -> worldListState
                 PublicSearchTab.Group -> groupListState
+                PublicSearchTab.Hot -> hotListState
             }
             PublicSearchPage(
                 query = query,
-                loadState = loadState,
+                loadState = if (tab == PublicSearchTab.Hot) hotLoadState else loadState,
                 resultCount = resultCount,
                 lazyListState = listState,
                 bottomContentPadding = bottomContentPadding,
@@ -213,7 +228,13 @@ fun PublicSearchContent(
                 failedText = failedText,
                 refreshFailedText = refreshFailedText,
                 retryText = retryText,
-                retry = { coroutineScope.launch { model.refreshSearchList(tab.searchType) } },
+                retry = {
+                    coroutineScope.launch {
+                        if (tab == PublicSearchTab.Hot) model.refreshHotWorlds()
+                        else model.refreshSearchList(tab.searchType)
+                    }
+                },
+                alwaysShowResults = tab == PublicSearchTab.Hot,
                 advancedOptionsContent = if (tab == PublicSearchTab.World) {
                     {
                         AdvancedOptionsPanel(
@@ -272,6 +293,18 @@ fun PublicSearchContent(
                             retry = { model.retryLoadMoreGroups() },
                         )
                     }
+                    PublicSearchTab.Hot -> renderHotWorldItems(hotWorlds) { worldJson ->
+                        coroutineScope.launch {
+                            val world: WorldData = runCatching {
+                                hotWorldJson.decodeFromString<WorldData>(worldJson)
+                            }.getOrNull() ?: return@launch
+                            navigator push WorldProfileScreen(
+                                worldProfileVO = WorldProfileVo(world),
+                                sharedSuffixKey = world.id,
+                                sharedImageCacheKey = world.safeImageUrl(),
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -315,6 +348,8 @@ private fun PublicSearchPage(
     retryText: String,
     retry: () -> Unit,
     advancedOptionsContent: (@Composable () -> Unit)?,
+    /** 探索 has no query but still shows rows; without this it would sit on the "enter a name" prompt. */
+    alwaysShowResults: Boolean = false,
     itemContent: LazyListScope.() -> Unit,
 ) {
     LazyColumn(
@@ -340,8 +375,9 @@ private fun PublicSearchPage(
             refreshFailedText = refreshFailedText,
             retryText = retryText,
             retry = retry,
+            skipPrompt = alwaysShowResults,
         )
-        if (query.isNotBlank()) itemContent()
+        if (alwaysShowResults || query.isNotBlank()) itemContent()
     }
 }
 
@@ -355,9 +391,10 @@ private fun LazyListScope.renderPublicSearchStatus(
     refreshFailedText: String,
     retryText: String,
     retry: () -> Unit,
+    skipPrompt: Boolean = false,
 ) {
     when {
-        query.isBlank() -> searchMessageItem(promptText, retryText = retryText)
+        query.isBlank() && !skipPrompt -> searchMessageItem(promptText, retryText = retryText)
         loadState.phase == SearchLoadPhase.Loading && resultCount == 0 -> item("search-loading") {
             Box(Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
                 AppActivityIndicator()

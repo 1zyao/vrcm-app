@@ -84,6 +84,7 @@ internal object LocaleStringsJa : LocaleStrings() {
     override val users = "ユーザー"
     override val worlds = "ワールド"
     override val groups = "グループ"
+    override val explore = "探索"
     override val publicSearchPrompt = "名前を入力して検索してください"
     override val publicSearchNoResults = "一致する結果はありません"
     override val publicSearchFailed = "検索に失敗しました。もう一度お試しください"

@@ -84,6 +84,7 @@ internal object LocaleStringsZhHans : LocaleStrings() {
     override val users = "用户"
     override val worlds = "世界"
     override val groups = "群组"
+    override val explore = "探索"
     override val publicSearchPrompt = "输入名称开始搜索"
     override val publicSearchNoResults = "没有找到匹配结果"
     override val publicSearchFailed = "搜索失败，请重试"

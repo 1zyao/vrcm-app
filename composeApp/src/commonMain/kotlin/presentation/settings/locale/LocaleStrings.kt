@@ -82,6 +82,7 @@ sealed class LocaleStrings {
     open val users: String = "Users"
     open val worlds: String = "Worlds"
     open val groups: String = "Groups"
+    open val explore: String = "Explore"
     open val publicSearchPrompt: String = "Enter a name to search"
     open val publicSearchNoResults: String = "No matching results"
     open val publicSearchFailed: String = "Search failed. Try again."

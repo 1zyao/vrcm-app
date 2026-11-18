@@ -173,6 +173,8 @@ private fun JsonObject.toNotificationDataV2(): NotificationDataV2? {
         type = NotificationType.entries
             .firstOrNull { it.value.equals(rawType, ignoreCase = true) }
             ?: NotificationType.All,
+        // Already joined onto the row by VRCX's database; without it the UI has to look the user up.
+        senderUsername = stringOrNull("senderUsername")?.takeIf { it.isNotBlank() },
     )
 }
 

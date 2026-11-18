@@ -14,6 +14,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -1018,6 +1019,31 @@ suspend fun VrcxCoreClient.socialFriendRosterBaseline(
             put("websocket", websocket)
             put("isFirstLoad", isFirstLoad)
         })
+    }
+)
+
+/**
+ * `GET instances/active` — the 探索 tab's 活跃 list.
+ *
+ * Raw instance rows: the shape is VRChat's, the same one the desktop frontend parses. Paging and pacing
+ * happen inside the core, so one call returns the whole list.
+ */
+suspend fun VrcxCoreClient.instancesActiveGet(): JsonElement =
+    invoke("app__vrchat_instances_active_get")
+
+/** `GET instances/discover` — the 探索 tab's 发现 list. */
+suspend fun VrcxCoreClient.instancesDiscoverGet(): JsonElement =
+    invoke("app__vrchat_instances_discover_get")
+
+/**
+ * How many friends visited these worlds in the last week.
+ *
+ * Flat `{worldIds: [...]}`, matching `appWorldRecentFriendCounts(worldIds)` on the desktop side.
+ */
+suspend fun VrcxCoreClient.worldRecentFriendCounts(worldIds: List<String>): JsonElement = invoke(
+    "app__world_recent_friend_counts",
+    buildJsonObject {
+        put("worldIds", buildJsonArray { worldIds.forEach { add(JsonPrimitive(it)) } })
     }
 )
 

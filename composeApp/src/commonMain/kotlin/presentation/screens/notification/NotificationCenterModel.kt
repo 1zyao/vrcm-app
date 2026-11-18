@@ -179,16 +179,26 @@ class NotificationCenterModel(
         authService.reTryAuthCatching {
             notificationApi.fetchNotificationsV2(NotificationType.FriendRequest.value)
         }.mapCatching { data ->
-            val usersById = userProfileEnrichmentService.fetchProfiles(
-                sessionToken = token,
-                userIds = data.map { it.senderUserId },
-            )
+            // The name comes from the row itself (`sender_username`, joined by VRCX's database), which is
+            // how the desktop renders these without a request. The profile lookup stays as an upgrade for
+            // the avatar, but it is no longer what the label depends on: it silently dropped failures, so
+            // a failed lookup used to leave a bare user id.
+            val usersById = runCatching {
+                userProfileEnrichmentService.fetchProfiles(
+                    sessionToken = token,
+                    userIds = data.map { it.senderUserId },
+                )
+            }.getOrDefault(emptyMap())
             data.map { notification ->
                 val user = usersById[notification.senderUserId]
+                val friend = friendService.friendMap[notification.senderUserId]
                 NotificationItemData(
                     n = notification,
-                    imageUrl = user?.iconUrl.orEmpty(),
-                    title = user?.displayName ?: notification.senderUserId,
+                    imageUrl = user?.iconUrl ?: friend?.iconUrl.orEmpty(),
+                    title = user?.displayName
+                        ?: friend?.displayName
+                        ?: notification.senderUsername?.takeIf { it.isNotBlank() }
+                        ?: notification.senderUserId,
                     actions = listOf(
                         NotificationItemData.ActionData(data = "", type = "Accept"),
                         NotificationItemData.ActionData(data = "", type = "Hide"),

@@ -30,7 +30,15 @@ import org.koin.core.logger.Logger
 internal enum class PublicSearchTab(val searchType: Int, val tabIndex: Int) {
     User(searchType = 0, tabIndex = 0),
     World(searchType = 1, tabIndex = 1),
-    Group(searchType = 3, tabIndex = 2);
+    Group(searchType = 3, tabIndex = 2),
+
+    /**
+     * 探索: what is populated right now, rather than what matches a query.
+     *
+     * Appended instead of first like on the desktop, so the existing `searchType` values - which the
+     * per-tab query and load state are keyed by - keep their meaning.
+     */
+    Hot(searchType = 4, tabIndex = 3);
 
     companion object {
         fun fromSearchType(searchType: Int): PublicSearchTab =
@@ -153,6 +161,11 @@ class SearchListPagerModel(
 
     suspend fun loadSearchListIfNeeded() {
         val type = _searchType.value
+        if (type == PublicSearchTab.Hot.searchType) {
+            // 探索 has no query: it shows what is populated right now, so it loads on its own.
+            hot.load()
+            return
+        }
         val requestKey = requestKeyFor(type)
         if (requestKey.searchText.isBlank()) {
             updateLoadState(type, PublicSearchLoadState())
@@ -161,6 +174,11 @@ class SearchListPagerModel(
         if (successfulRequestKeysByType.value[type] == requestKey) return
         refreshSearchList(type)
     }
+
+    /** Worlds that are populated right now (the 探索 tab). Lives beside the query-driven tabs. */
+    internal val hot = HotWorldsSource(logger)
+
+    suspend fun refreshHotWorlds() = hot.load(force = true)
 
     suspend fun refreshSearchList(): Boolean = refreshSearchList(_searchType.value)
 

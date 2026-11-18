@@ -60,7 +60,10 @@ data class NotificationItemData(
         id = n.id,
         source = NotificationSource.PIPELINE,
         imageUrl = (n.imageUrl ?: n.details?.imageUrl ?: n.data.imageUrl).orEmpty(),
-        title = n.title,
+        // VRCX's row already joins the sender's name; `title` is only set for notifications that have a
+        // title of their own (announcements, events), so falling back to the sender is what makes
+        // "Alice sent you a friend request" possible without a second lookup.
+        title = n.title?.takeIf { it.isNotBlank() } ?: n.senderUsername?.takeIf { it.isNotBlank() },
         message = n.message,
         createdAt = n.createdAt,
         senderUserId = n.senderUserId.orEmpty(),
