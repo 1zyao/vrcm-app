@@ -177,18 +177,66 @@ iosApp/                       完整的 Xcode 工程 + Info.plist        有
 Rust 侧
   1. mobile-core 加一个 extern "C" 入口（职责等同 Android 的 JNI 那个）   ✅ 已完成
   2. crate-type 加 staticlib                                              ✅ 已完成
-  3. 在 macOS 上编 aarch64-apple-ios → vrcx_core.a                        ⬜ 必须 macOS + Xcode
+  3. 在 macOS 上编 aarch64-apple-ios 静态库                               ✅ 已由 CI 完成
 
 Kotlin 侧
-  4. iosMain 的 VrcxCoreBridge 换成真实实现（cinterop 声明已就位）          ⬜ 等第 3 步
+  4. iosCore 的真实 VrcxCoreBridge（cinterop 调 vrcx_core_start）          ✅ 已完成
   5. Info.plist 加 NSAllowsLocalNetworking                                 ✅ 已完成
 
 iOS 工程
-  6. app 进后台/回前台的重连处理（iOS 没有前台服务保活）                    ⬜ 等第 3 步
+  6. app 进后台/回前台的重连处理                                           ⬜ 未做，需要真机/模拟器验证
 ```
 
 **只需要一个 C 函数**，因为 core 的协议是回环 HTTP：启动一次之后，`VrcxCoreClient` 里所有命令
 调用都走 `127.0.0.1`，`commonMain` 一行都不用改。
+
+### 用 GitHub Actions 验证 iOS（不需要 Mac）
+
+macOS runner 就位后，这套配置是**免费、可重复**的验证手段。要点按踩坑顺序记：
+
+```
+runner        macos-15（唯一可用）
+              macos-13 已移除、macos-14 于 2026-11-02 全部退役 —— 发到这两个标签的
+              任务会永久排队而不会报错，看起来像"容量不足"
+
+产物名        libvrcx_0_mobile_core.a
+              静态库用的是 crate 的默认 lib 名；libvrcx_0_mobile.so 是 Android cdylib 的名字
+
+只编库        cargo build --target aarch64-apple-ios -p vrcx-0-mobile-core --lib
+              cargo 会构建包内所有目标，探针二进制必须用 feature 门控掉
+              （required-features = ["probe"]），否则它也要链接 → ___chkstk_darwin
+
+cinterop      const char* 参数由 cinterop 自动映射成 Kotlin String?，
+              不要写 dataDir.cstr.ptr（类型不匹配）
+
+源集选择      src/iosCore（真实） / src/iosStub（stub）二选一，
+              由"静态库是否存在"决定，与 cinterop 注册共用同一个标志；
+              注册要用 matching { it.name == "iosMain" }.all {}，
+              因为 iosMain 是配置阶段之后由层级模板创建的，且 MainViewController 就在里面
+
+pipefail      ./gradlew … | tee log 的返回值是 tee 的，
+              没有 set -o pipefail 时编译失败会显示为绿色 —— 踩过一次
+```
+
+对应的一次真实运行（2026-11-18）：
+
+```
+✓ Build core for iOS (static library)     4 分钟   → 308 MB 静态库
+✓ Build iOS Framework with Gradle        16 分 29 秒 → BUILD SUCCESSFUL
+  VRCX core for iOS: iosCore (static library present)
+  > Task :composeApp:cinteropVrcxCoreIosArm64
+  > Task :composeApp:linkDebugFrameworkIosArm64
+  ./composeApp/build/bin/iosArm64/debugFramework/ComposeApp.framework
+```
+
+工作流文件：`.github/workflows/ios-build.yml`（`workflow_dispatch`，输入 `build_core` 控制是否编译
+核心）。仓库：app → `1zyao/vrcm-app`，核心 → `1zyao/vrcx-mobile-core`（branch `mobile`）。
+
+Windows 上还能做的前置检查（不起 runner）：
+
+```powershell
+gradlew.bat :composeApp:compileKotlinIosArm64 -Pkotlin.native.enableKlibsCrossCompilation=true
+```
 
 #### 已完成的部分
 
