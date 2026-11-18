@@ -84,7 +84,8 @@
 
 | 位置 | 为什么 |
 | --- | --- |
-| `FileApi.uploadFile` / `uploadImageFile` / `uploadAvatarGalleryImage`、`PrintsApi.uploadPrint` | multipart 请求体，核心侧需要专门的媒体上传管线（桌面有 `LocalMediaUploadAdapter`，手机端只在通知链里用过 `imageData` 字符串形式）。 |
+| `FileApi.uploadFile` / `uploadImageFile` / `uploadAvatarGalleryImage` | multipart 请求体，核心侧要专门的媒体上传管线（桌面有 `LocalMediaUploadAdapter`）。桌面端有 `app__vrchat_media_asset_upload` / `_gallery_image_upload` / `_avatar_gallery_image_upload` 等命令，但形状未逐一核对，尚未接入。 |
+| `PrintsApi.uploadPrint` | **已核对，形状不兼容**：核心的 `print_upload_input` 只把 `PrintUploadParams { note, timestamp }` 作为 post data，而手机端这一处还发 `worldId` / `worldName`。迁过去会让拍立得失去世界关联。要接入需先给 `PrintUploadParams` 补这两个字段（改共享 crate）。 |
 | `FileApi.findImageFileLocal` / `getFileInfo` | 文件元信息读取，桌面端对应的是 `app__file_metadata_get`（本地文件），形状不同。 |
 
 ## 关于"最终删除 network/api/*"
