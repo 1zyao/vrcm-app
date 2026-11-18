@@ -18,10 +18,13 @@ package = io.github.vrcmteam.vrcm.core.cinterop
 # never enter the link, and the failure surfaces late - `_vrcx_core_start not found` at the final app link -
 # instead of here.
 #
+# The name is the one the file has *here* (`vrcx_core.a`), not the name cargo produces
+# (`libvrcx_0_mobile_core.a`): cinterop looks for the string verbatim - it does not apply the `lib` prefix or
+# the `.a` suffix - and the CI copies the archive to this name.
+#
 # The search directory is NOT set here: `libraryPaths = .` resolved against cinterop's own working directory
-# rather than this file's, which failed with `Could not find 'libvrcx_0_mobile_core.a' in neither of [.]`.
-# `composeApp/build.gradle.kts` passes an absolute `-libraryPath` through `extraOpts` instead.
-staticLibraries = libvrcx_0_mobile_core.a
+# rather than this file's. `composeApp/build.gradle.kts` passes an absolute `-libraryPath` through `extraOpts`.
+staticLibraries = vrcx_core.a
 
 # Rust's static libraries need the system frameworks the host pulls in:
 #   CoreFoundation / Security  - keychain and TLS roots
