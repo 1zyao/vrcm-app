@@ -88,3 +88,65 @@ jobs:
 
       - name: List iOS Framework files (for debugging)
         run: find . -path "*ComposeApp.framework" -type d
+
+      # Everything below is the unsigned-device-IPA path, and it only makes sense when the core was
+      # compiled in: without it the app would install and then fail to reach a core that is not there.
+      #
+      # The recipe is the one `release.yml` already uses for release IPAs, minus signing: archive with
+      # `CODE_SIGNING_ALLOWED=NO`, then let `iosApp/package-ipa.sh` ad-hoc sign and zip the Payload.
+      # Ad-hoc is enough for SideStore / AltStore to re-sign on the device.
+      - name: Build the iOS Release framework for the archive
+        if: ${{ inputs.build_core }}
+        run: |
+          set -euo pipefail
+          # Stream Native diagnostics and release the Gradle heap before Xcode starts. Xcode's embed task
+          # reuses this framework through Gradle's up-to-date checks.
+          ./gradlew :composeApp:linkReleaseFrameworkIosArm64 \
+            --no-daemon --console=plain --stacktrace --max-workers=1
+
+      - name: Archive and package an unsigned device IPA
+        if: ${{ inputs.build_core }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          xcodebuild -project iosApp/iosApp.xcodeproj -scheme iosApp \
+            -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/VRCM.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO \
+            VRCM_DISTRIBUTION_CHANNEL=GitHub archive
+          bash iosApp/package-ipa.sh "$RUNNER_TEMP/VRCM.xcarchive" "$GITHUB_WORKSPACE/artifacts/VRCM-unsigned.ipa"
+          ls -lh artifacts/*.ipa
+
+      - name: Verify the IPA really carries the core
+        if: ${{ inputs.build_core }}
+        # An IPA that installs but has no core is the failure mode worth catching here: the app would come up,
+        # try to start `vrcx_core_start`, and show an empty shell with no diagnostics.
+        run: |
+          set -euo pipefail
+          APP="$RUNNER_TEMP/VRCM.xcarchive/Products/Applications/iosApp.app"
+          test -d "$APP" || { echo "::error::no app bundle in the archive"; exit 1; }
+          test -d "$APP/Frameworks/ComposeApp.framework" \
+            || { echo "::error::ComposeApp.framework was not embedded"; find "$APP" -maxdepth 2; exit 1; }
+          lipo -info "$APP/Frameworks/ComposeApp.framework/ComposeApp"
+          echo "framework size: $(stat -f%z "$APP/Frameworks/ComposeApp.framework/ComposeApp") bytes"
+          # The C entry point is exported by the core and called by the Kotlin bridge, so it must be in the
+          # linked binary. `nm` first (exact), `strings` as the fallback for stripped builds.
+          if nm -gj "$APP/Frameworks/ComposeApp.framework/ComposeApp" 2>/dev/null | grep -q vrcx_core_start; then
+            echo "core symbol found via nm"
+          elif strings -a "$APP/Frameworks/ComposeApp.framework/ComposeApp" | grep -q vrcx_core_start; then
+            echo "core symbol found via strings"
+          else
+            echo "::error::vrcx_core_start is not in the framework - this IPA has no core"
+            exit 1
+          fi
+          # Loopback HTTP must stay allowed, or the app cannot reach its own in-process core.
+          plutil -extract NSAppTransportSecurity.NSAllowsLocalNetworking raw "$APP/Info.plist"
+
+      - name: Upload the unsigned IPA
+        if: ${{ inputs.build_core }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: VRCM-ios-unsigned
+          path: artifacts/*.ipa
+          if-no-files-found: error
+          retention-days: 14
