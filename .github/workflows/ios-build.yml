@@ -109,14 +109,28 @@ jobs:
           bash iosApp/package-ipa.sh "$RUNNER_TEMP/VRCM.xcarchive" "$GITHUB_WORKSPACE/artifacts/VRCM-unsigned.ipa"
           ls -lh artifacts/*.ipa
 
+      - name: Upload the unsigned IPA
+        if: ${{ inputs.build_core }}
+        # Before the verification step on purpose: the IPA is the deliverable, and an over-strict assertion
+        # should not throw it away. The check below still fails the job when the core is missing.
+        uses: actions/upload-artifact@v7
+        with:
+          name: VRCM-ios-unsigned
+          path: artifacts/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Verify the IPA really carries the core
         if: ${{ inputs.build_core }}
         # An IPA that installs but has no core is the failure mode worth catching here: the app would come up,
         # try to start `vrcx_core_start`, and show an empty shell with no diagnostics.
         run: |
           set -euo pipefail
-          APP="$RUNNER_TEMP/VRCM.xcarchive/Products/Applications/iosApp.app"
-          test -d "$APP" || { echo "::error::no app bundle in the archive"; exit 1; }
+          # The bundle is not `iosApp.app`: `Config.xcconfig` sets APP_NAME=VRCM, so PRODUCT_NAME follows it.
+          # Globbing also survives that being renamed again.
+          APP=$(find "$RUNNER_TEMP/VRCM.xcarchive/Products/Applications" -maxdepth 1 -name '*.app' | head -n 1)
+          [ -n "$APP" ] || { echo "::error::no app bundle in the archive"; find "$RUNNER_TEMP/VRCM.xcarchive" -maxdepth 3; exit 1; }
+          echo "app bundle: $APP"
           test -d "$APP/Frameworks/ComposeApp.framework" \
             || { echo "::error::ComposeApp.framework was not embedded"; find "$APP" -maxdepth 2; exit 1; }
           lipo -info "$APP/Frameworks/ComposeApp.framework/ComposeApp"
@@ -133,12 +147,4 @@ jobs:
           fi
           # Loopback HTTP must stay allowed, or the app cannot reach its own in-process core.
           plutil -extract NSAppTransportSecurity.NSAllowsLocalNetworking raw "$APP/Info.plist"
-
-      - name: Upload the unsigned IPA
-        if: ${{ inputs.build_core }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: VRCM-ios-unsigned
-          path: artifacts/*.ipa
-          if-no-files-found: error
-          retention-days: 14
+          echo "IPA: $(ls -lh "$GITHUB_WORKSPACE"/artifacts/*.ipa)"
