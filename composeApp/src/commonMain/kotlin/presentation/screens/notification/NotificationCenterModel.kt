@@ -553,7 +553,7 @@ class NotificationCenterModel(
 
     private suspend fun deleteRemoteNotification(item: NotificationItemData) {
         when (item.source) {
-            NotificationSource.PIPELINE -> notificationApi.deleteNotificationV2(item.id)
+            NotificationSource.PIPELINE -> notificationApi.deleteNotificationV2(item)
             NotificationSource.LEGACY -> notificationApi.deleteNotification(item)
         }
     }

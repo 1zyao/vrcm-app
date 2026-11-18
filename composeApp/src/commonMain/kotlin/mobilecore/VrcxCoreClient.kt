@@ -393,6 +393,19 @@ suspend fun VrcxCoreClient.searchGroupsGet(params: JsonObject): VrchatResult = i
  * The chain needs the notification target, and the row carries it: `version` is 1 for the pipeline rows
  * and 2 for the legacy ones, which is what the core keeps in that column.
  */
+/**
+ * Expire a legacy-table notification locally (`app__notification_v2_expire`).
+ *
+ * Local only, no VRChat request. Flat args (`userId`, `id`) because that is how the desktop command takes
+ * them - it is one of the few that is not wrapped in `input`.
+ */
+suspend fun VrcxCoreClient.notificationV2Expire(userId: String, id: String): VrchatResult = invoke(
+    "app__notification_v2_expire",
+    buildJsonObject {
+        put("userId", userId)
+        put("id", id)
+    },
+).toVrchatResult()
 suspend fun VrcxCoreClient.notificationHideAndExpire(
     ownerUserId: String,
     notificationId: String,

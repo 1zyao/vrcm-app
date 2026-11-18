@@ -8,6 +8,7 @@ import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.VrcxCoreException
 import io.github.vrcmteam.vrcm.mobilecore.notificationListQuery
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
+import io.github.vrcmteam.vrcm.mobilecore.notificationV2Expire
 import io.github.vrcmteam.vrcm.presentation.screens.home.data.notificationVersion
 import io.github.vrcmteam.vrcm.mobilecore.notificationRespondAndExpire
 import io.github.vrcmteam.vrcm.mobilecore.notificationHideAndExpire
@@ -94,10 +95,16 @@ class NotificationApi(
 
 
     /** Deletes a notification returned by the current `/notifications` API. */
-    suspend fun deleteNotificationV2(notificationId: String) {
-        client.delete {
-            url { path(NOTIFICATIONS_API_PREFIX, notificationId) }
-        }.checkSuccess<Unit>()
+    /**
+     * Expires a pipeline notification locally (`app__notification_v2_expire`).
+     *
+     * The desktop reaches this through `local_data()`; the phone calls the same persistence function behind
+     * the command. Local only - the remote side was handled when the notification was created or hidden.
+     */
+    suspend fun deleteNotificationV2(item: NotificationItemData) {
+        val session = SharedFlowCentre.currentSession.value?.account?.userId
+            ?: throw VrcxCoreException("noSession", "no authenticated session for notification expire")
+        vrcxCoreClient().notificationV2Expire(session, item.id).bodyOrThrow()
     }
 
     /** Hides a notification returned by the legacy `/auth/user/notifications` API. */
