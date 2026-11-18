@@ -3,8 +3,6 @@ package io.github.vrcmteam.vrcm.mobilecore
 import io.github.vrcmteam.vrcm.core.cinterop.vrcx_core_free
 import io.github.vrcmteam.vrcm.core.cinterop.vrcx_core_start
 import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.cstr
-import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.toKString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
@@ -37,9 +35,9 @@ private fun appDataDir(): String =
 
 @OptIn(ExperimentalForeignApi::class)
 private fun startNativeCore(dataDir: String, deviceName: String): String {
-    val raw = memScoped {
-        vrcx_core_start(dataDir.cstr.ptr, deviceName.cstr.ptr)
-    } ?: error("vrcx_core_start returned null")
+    // cinterop maps `const char *` parameters to Kotlin `String?` by itself, so no CString juggling is
+    // needed here; the returned `char *` stays a pointer and is released by `vrcx_core_free`.
+    val raw = vrcx_core_start(dataDir, deviceName) ?: error("vrcx_core_start returned null")
     return try {
         raw.toKString()
     } finally {

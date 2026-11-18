@@ -66,6 +66,9 @@ jobs:
       - name: Build iOS Framework with Gradle
         # 验证 Kotlin/Native 编译与 Framework 链接，不生成或签名 IPA。
         run: |
+          # `pipefail` matters: without it the exit status of the pipeline is tee's, so a failed Kotlin
+          # compile would sail through as a green step. That is exactly what happened once already.
+          set -o pipefail
           ./gradlew :composeApp:linkDebugFrameworkIosArm64 --stacktrace --max-workers=1 \
             -Dorg.gradle.jvmargs="-Xmx2048M -Dfile.encoding=UTF-8" \
             -Pkotlin.daemon.jvmargs=-Xmx4096M 2>&1 | tee /tmp/ios-build.log
