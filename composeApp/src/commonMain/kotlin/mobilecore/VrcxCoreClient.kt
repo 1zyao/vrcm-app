@@ -704,6 +704,23 @@ suspend fun VrcxCoreClient.mediaFilesGet(
  * `hardClose = true` closes the instance now rather than when it empties, which is what the app's
  * "立即关闭" action means.
  */
+/** `DELETE avatars/{id}` (`app__vrchat_avatar_delete`). */
+suspend fun VrcxCoreClient.avatarDelete(avatarId: String): VrchatResult = invoke(
+    "app__vrchat_avatar_delete",
+    buildJsonObject { put("input", buildJsonObject { put("avatarId", avatarId) }) }
+).toVrchatResult()
+
+/** `POST avatars/{id}/impostor/enqueue` (`app__vrchat_avatar_impostor_create`). */
+suspend fun VrcxCoreClient.avatarImpostorCreate(avatarId: String): VrchatResult = invoke(
+    "app__vrchat_avatar_impostor_create",
+    buildJsonObject { put("input", buildJsonObject { put("avatarId", avatarId) }) }
+).toVrchatResult()
+
+/** `DELETE avatars/{id}/impostor` (`app__vrchat_avatar_impostor_delete`). */
+suspend fun VrcxCoreClient.avatarImpostorDelete(avatarId: String): VrchatResult = invoke(
+    "app__vrchat_avatar_impostor_delete",
+    buildJsonObject { put("input", buildJsonObject { put("avatarId", avatarId) }) }
+).toVrchatResult()
 suspend fun VrcxCoreClient.instanceClose(location: String, hardClose: Boolean = true): VrchatResult =
     invoke(
         "app__vrchat_instance_close",

@@ -27,6 +27,9 @@ import io.ktor.http.*
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
+import io.github.vrcmteam.vrcm.mobilecore.avatarDelete
+import io.github.vrcmteam.vrcm.mobilecore.avatarImpostorCreate
+import io.github.vrcmteam.vrcm.mobilecore.avatarImpostorDelete
 class AvatarsApi(private val client: HttpClient) {
 
     suspend fun getAvatarStyles(): List<AvatarStyle> =
@@ -56,20 +59,34 @@ class AvatarsApi(private val client: HttpClient) {
         )
 
     suspend fun deleteImpostor(avatarId: String) {
-        client.delete("$AVATARS_API_PREFIX/$avatarId/impostor").checkSuccess { Unit }
+        // Through the core (`app__vrchat_avatar_impostor_delete`).
+        vrcxCoreClient().avatarImpostorDelete(avatarId).bodyOrThrow()
     }
 
     suspend fun updateAvatar(avatarId: String, update: AvatarUpdateData): AvatarData =
+        // Left on the passthrough on purpose: the core's `AvatarUpdateRequest` denies unknown
+        // fields and has no `imageUrl`, which this DTO carries - routing it would reject the body
+        // (or silently drop that field), so the request stays as it is until the core accepts it.
         client.put("$AVATARS_API_PREFIX/$avatarId") {
             contentType(ContentType.Application.Json)
             setBody(update)
         }.checkSuccess()
 
-    suspend fun deleteAvatar(avatarId: String): AvatarData =
-        client.delete("$AVATARS_API_PREFIX/$avatarId").checkSuccess()
+    suspend fun deleteAvatar(avatarId: String): AvatarData {
+        // Through the core (`app__vrchat_avatar_delete`).
+        return CoreJson.decodeFromString(
+            AvatarData.serializer(),
+            vrcxCoreClient().avatarDelete(avatarId).bodyOrThrow(),
+        )
+    }
 
-    suspend fun enqueueImpostor(avatarId: String): AvatarImpostorServiceStatus =
-        client.post("$AVATARS_API_PREFIX/$avatarId/impostor/enqueue").checkSuccess()
+    suspend fun enqueueImpostor(avatarId: String): AvatarImpostorServiceStatus {
+        // Through the core (`app__vrchat_avatar_impostor_create`).
+        return CoreJson.decodeFromString(
+            AvatarImpostorServiceStatus.serializer(),
+            vrcxCoreClient().avatarImpostorCreate(avatarId).bodyOrThrow(),
+        )
+    }
 
     suspend fun getImpostorQueueStats(): AvatarImpostorQueueStats =
         client.get("$AVATARS_API_PREFIX/impostor/queue/stats").checkSuccess()
