@@ -26,6 +26,7 @@ import io.ktor.client.*
 import io.ktor.client.request.*
 import io.ktor.http.*
 
+import io.github.vrcmteam.vrcm.mobilecore.groupRepresentationSet
 class GroupsApi(private val client: HttpClient) {
 
     suspend fun fetchGroup(groupId: String, includeRoles: Boolean = false, purpose: String = "other") =
@@ -70,10 +71,7 @@ class GroupsApi(private val client: HttpClient) {
     }
 
     suspend fun updateRepresentation(groupId: String, isRepresenting: Boolean) =
-        client.put("$GROUPS_API_PREFIX/$groupId/representation") {
-            contentType(ContentType.Application.Json)
-            setBody(UpdateGroupRepresentationRequest(isRepresenting))
-        }.checkSuccess { Unit }
+        vrcxCoreClient().groupRepresentationSet(groupId, isRepresenting).bodyOrThrow()
 
     suspend fun updateGroupNotifications(
         groupId: String,

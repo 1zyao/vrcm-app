@@ -26,6 +26,9 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 
+import io.github.vrcmteam.vrcm.mobilecore.worldDelete
+import io.github.vrcmteam.vrcm.mobilecore.worldPublish
+import io.github.vrcmteam.vrcm.mobilecore.worldUnpublish
 class WorldsApi(private val client: HttpClient)  {
     /**
      * 获取单个世界的详细信息
@@ -45,15 +48,18 @@ class WorldsApi(private val client: HttpClient)  {
         client.get("$WORLDS_API_PREFIX/$worldId/publish").checkSuccess()
 
     suspend fun publishWorld(worldId: String) {
-        client.put("$WORLDS_API_PREFIX/$worldId/publish").checkSuccess { Unit }
+        // Through the core (`app__vrchat_world_publish`).
+        vrcxCoreClient().worldPublish(worldId).bodyOrThrow()
     }
 
     suspend fun unpublishWorld(worldId: String) {
-        client.delete("$WORLDS_API_PREFIX/$worldId/publish").checkSuccess { Unit }
+        // Through the core (`app__vrchat_world_unpublish`).
+        vrcxCoreClient().worldUnpublish(worldId).bodyOrThrow()
     }
 
     suspend fun deleteWorld(worldId: String) {
-        client.delete("$WORLDS_API_PREFIX/$worldId").checkSuccess { Unit }
+        // Through the core (`app__vrchat_world_delete`).
+        vrcxCoreClient().worldDelete(worldId).bodyOrThrow()
     }
 
     suspend fun updateWorld(worldId: String, update: WorldUpdateData): WorldData =

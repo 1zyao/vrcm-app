@@ -692,6 +692,37 @@ suspend fun VrcxCoreClient.mediaFilesGet(
  * The backend's request takes only `n` - there is no offset - so paging asks for more and drops what
  * is already shown.
  */
+/** `DELETE worlds/{id}` (`app__vrchat_world_delete`). */
+suspend fun VrcxCoreClient.worldDelete(worldId: String): VrchatResult = invoke(
+    "app__vrchat_world_delete",
+    buildJsonObject { put("input", buildJsonObject { put("worldId", worldId) }) }
+).toVrchatResult()
+
+/** `PUT worlds/{id}/publish` (`app__vrchat_world_publish`). */
+suspend fun VrcxCoreClient.worldPublish(worldId: String): VrchatResult = invoke(
+    "app__vrchat_world_publish",
+    buildJsonObject { put("input", buildJsonObject { put("worldId", worldId) }) }
+).toVrchatResult()
+
+/** `DELETE worlds/{id}/publish` (`app__vrchat_world_unpublish`). */
+suspend fun VrcxCoreClient.worldUnpublish(worldId: String): VrchatResult = invoke(
+    "app__vrchat_world_unpublish",
+    buildJsonObject { put("input", buildJsonObject { put("worldId", worldId) }) }
+).toVrchatResult()
+
+/** `PUT groups/{id}/representation` (`app__vrchat_group_representation_set`). */
+suspend fun VrcxCoreClient.groupRepresentationSet(
+    groupId: String,
+    isRepresenting: Boolean,
+): VrchatResult = invoke(
+    "app__vrchat_group_representation_set",
+    buildJsonObject {
+        put("input", buildJsonObject {
+            put("groupId", groupId)
+            put("isRepresenting", isRepresenting)
+        })
+    }
+).toVrchatResult()
 /** `GET inventory/template/{id}` (`app__vrchat_media_inventory_template_get`). */
 suspend fun VrcxCoreClient.inventoryTemplateGet(templateId: String): VrchatResult = invoke(
     "app__vrchat_media_inventory_template_get",
