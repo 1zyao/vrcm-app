@@ -49,14 +49,14 @@ jobs:
         run: |
           rustup target add aarch64-apple-ios
           cargo build --release --target aarch64-apple-ios -p vrcx-0-mobile-core --lib
-          ls -lh target/aarch64-apple-ios/release/libvrcx_0_mobile.a
+          ls -lh target/aarch64-apple-ios/release/libvrcx_0_mobile_core.a
 
       # The cinterop block in composeApp/build.gradle.kts registers itself only when this file exists,
       # so this copy is what turns the Kotlin side from a stub into a real binding.
       - name: Hand the static library to cinterop
         if: ${{ inputs.build_core }}
         run: |
-          cp core/target/aarch64-apple-ios/release/libvrcx_0_mobile.a \
+          cp core/target/aarch64-apple-ios/release/libvrcx_0_mobile_core.a \
              composeApp/src/nativeInterop/cinterop/vrcx_core.a
           ls -lh composeApp/src/nativeInterop/cinterop/
 
