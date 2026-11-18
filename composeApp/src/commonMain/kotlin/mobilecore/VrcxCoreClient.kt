@@ -692,6 +692,17 @@ suspend fun VrcxCoreClient.mediaFilesGet(
  * The backend's request takes only `n` - there is no offset - so paging asks for more and drops what
  * is already shown.
  */
+/** `GET inventory/template/{id}` (`app__vrchat_media_inventory_template_get`). */
+suspend fun VrcxCoreClient.inventoryTemplateGet(templateId: String): VrchatResult = invoke(
+    "app__vrchat_media_inventory_template_get",
+    buildJsonObject { put("input", buildJsonObject { put("inventoryTemplateId", templateId) }) }
+).toVrchatResult()
+
+/** `POST reward/redeem` (`app__vrchat_media_reward_redeem`). */
+suspend fun VrcxCoreClient.rewardRedeem(code: String): VrchatResult = invoke(
+    "app__vrchat_media_reward_redeem",
+    buildJsonObject { put("input", buildJsonObject { put("code", code) }) }
+).toVrchatResult()
 /** `DELETE file/{fileId}` (`app__vrchat_media_file_delete`). */
 suspend fun VrcxCoreClient.mediaFileDelete(fileId: String): VrchatResult = invoke(
     "app__vrchat_media_file_delete",

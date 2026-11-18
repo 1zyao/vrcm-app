@@ -7,6 +7,9 @@ import io.github.vrcmteam.vrcm.network.api.inventory.data.RewardRedemptionResult
 import io.github.vrcmteam.vrcm.mobilecore.CoreJson
 import io.github.vrcmteam.vrcm.mobilecore.inventoryGet
 import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
+import kotlinx.serialization.builtins.ListSerializer
+import io.github.vrcmteam.vrcm.mobilecore.rewardRedeem
+import io.github.vrcmteam.vrcm.mobilecore.inventoryTemplateGet
 import io.github.vrcmteam.vrcm.network.extensions.checkSuccess
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
@@ -66,14 +69,20 @@ class InventoryApi(private val client: HttpClient) {
     suspend fun getTemplate(templateId: String): InventoryTemplateData {
         require(ID_PATTERN.matches(templateId)) { "Invalid inventory template ID" }
 
-        return client.get("inventory/template/$templateId").checkSuccess()
+        // Through the core (`app__vrchat_media_inventory_template_get`).
+        return CoreJson.decodeFromString(
+            InventoryTemplateData.serializer(),
+            vrcxCoreClient().inventoryTemplateGet(templateId).bodyOrThrow(),
+        )
     }
 
-    suspend fun redeemReward(code: String): List<RewardRedemptionResult> =
-        client.post("reward/redeem") {
-            contentType(ContentType.Application.Json)
-            setBody(RewardRedemptionRequestData(code))
-        }.checkSuccess()
+    suspend fun redeemReward(code: String): List<RewardRedemptionResult> {
+        // Through the core (`app__vrchat_media_reward_redeem`).
+        return CoreJson.decodeFromString(
+            ListSerializer(RewardRedemptionResult.serializer()),
+            vrcxCoreClient().rewardRedeem(code).bodyOrThrow(),
+        )
+    }
 
     private companion object {
         const val DEFAULT_PAGE_SIZE = 60
