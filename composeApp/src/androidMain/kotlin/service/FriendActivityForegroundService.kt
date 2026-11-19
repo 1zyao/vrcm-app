@@ -9,7 +9,6 @@ import android.content.IntentFilter
 import android.os.IBinder
 import androidx.core.content.ContextCompat
 import io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
-import io.github.vrcmteam.vrcm.network.websocket.WebSocketApi
 import io.github.vrcmteam.vrcm.presentation.notifications.FriendNotificationFactory
 import org.koin.core.logger.Logger
 import kotlinx.coroutines.CoroutineScope
@@ -47,16 +46,23 @@ class FriendActivityForegroundService : Service() {
         showMonitoringNotification()
         networkWakeLock = BackgroundNetworkWakeLock(this)
         val koin = GlobalContext.get()
-        koin.get<WebSocketApi>().setBackgroundMonitoringEnabled(true)
+        // Nothing to switch on for realtime any more: the socket lives in the VRCX-0 core now, and the core
+        // lives in this process. Keeping the process alive - which is all this service does - is therefore
+        // what keeps the socket alive. The old `WebSocketApi.setBackgroundMonitoringEnabled(true)` call here
+        // was a no-op: `replaceConnection` returns early whenever the core is up, because the shared Ktor
+        // client is backed by `CoreHttpEngine` and declares no WebSocket capability.
         val friendService = koin.get<FriendService>()
         val notificationService = koin.get<FriendOnlineNotificationService>()
         koin.get<FriendActivityService>().onBackgroundMonitoringStarted()
-        val webSocketApi = koin.get<WebSocketApi>()
         val logger = koin.get<Logger>()
         scope.launch {
             while (isActive) {
                 delay(FALLBACK_REFRESH_INTERVAL_MILLIS)
-                if (SharedFlowCentre.currentSession.value != null && !webSocketApi.isConnected()) {
+                // Unconditional now. The old guard was `!webSocketApi.isConnected()`, which with the core
+                // present is always true (that client never connects), so the branch ran every time anyway -
+                // keeping the guard would only hide the intent. Fifteen minutes of REST refreshes is a cheap
+                // backstop for a socket that the core is responsible for reconnecting.
+                if (SharedFlowCentre.currentSession.value != null) {
                     runCatching { friendService.refreshFriendList() }
                         .onFailure { logger.warn("Background friend refresh failed: ${it.message.orEmpty()}") }
                     notificationService.refreshInboxNotifications()
@@ -82,8 +88,9 @@ class FriendActivityForegroundService : Service() {
 
     override fun onDestroy() {
         GlobalContext.getOrNull()?.let { koin ->
-            val webSocketApi = koin.get<WebSocketApi>()
-            webSocketApi.setBackgroundMonitoringEnabled(false)
+            // No `setBackgroundMonitoringEnabled(false)` counterpart: see `onCreate`. The core's socket is
+            // tied to the process, and the process outlives this service if the UI is still alive - which is
+            // the behaviour we want, since the UI reads from the same socket.
             koin.get<FriendActivityService>().onBackgroundMonitoringStopped()
         }
         scope.cancel()

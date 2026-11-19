@@ -19,6 +19,11 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import io.github.vrcmteam.vrcm.core.shared.SharedFlowCentre
+import io.ktor.utils.io.errors.IOException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * Client for the in-process VRCX-0 core.
@@ -36,6 +41,53 @@ class VrcxCoreClient(
     private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     suspend fun invoke(cmd: String, args: JsonElement = buildJsonObject {}): JsonElement {
+        val first = try {
+            invokeOnce(cmd, args)
+        } catch (error: IOException) {
+            // On iOS the whole process is frozen in the background, so the core's threads - and the loopback
+            // connection the HTTP client pooled before freezing - are not in the state the client assumes on
+            // resume. One retry on a fresh connection is the difference between "the app looks broken after
+            // coming back" and a half-second pause.
+            if (!isCoreUnreachable(error)) throw VrcxCoreException("coreUnreachable", coreUnreachableMessage(error))
+            delay(RESUME_RETRY_DELAY_MILLIS)
+            resetConnections()
+            invokeOnce(cmd, args)
+        }
+        // The core binds its port before it finishes restoring the saved session, so the first screen can ask
+        // for data while the cookie jar is still empty. VRChat answers `401 "Missing Credentials"`, and that
+        // single early failure was enough to leave an error banner on the home page. Waiting for the app's
+        // session and asking once more turns that into a short delay instead of a visible error.
+        if (!first.isMissingCredentials()) return first
+        val authed = withTimeoutOrNull(SESSION_WAIT_MILLIS) {
+            SharedFlowCentre.currentSession.first { it != null }
+        } != null
+        return if (authed) invokeOnce(cmd, args) else first
+    }
+
+    /**
+     * Drops pooled connections so the next call opens a new socket.
+     *
+     * Called when the app returns to the foreground: a socket kept from before the process was frozen may be
+     * dead without the client knowing, which is what a loopback connection refused (`-1004`) looks like.
+     */
+    fun resetConnections() {
+        runCatching { http.close() }
+    }
+
+    private fun isCoreUnreachable(error: Throwable): Boolean =
+        error is IOException || error.cause is IOException
+
+    private fun coreUnreachableMessage(error: Throwable): String {
+        val detail = error.message?.take(160)?.replace('\n', ' ') ?: error::class.simpleName.orEmpty()
+        return "核心连接已中断，请稍候重试（$detail）"
+    }
+
+    private suspend fun invokeOnce(cmd: String, args: JsonElement): JsonElement {
+        // Remembered so a non-2xx relayed from VRChat can name the command that produced it. The `app__vrchat_*`
+        // family answers with VRChat's own body and status, and `bodyOrThrow` only ever sees the body - which is
+        // how a real failure arrived as `backend answered 401: {"error":{"message":"\"Missing Credentials\""}}`
+        // with no hint of which call it was.
+        lastInvokedCommand = cmd
         val payload = buildJsonObject {
             put("cmd", cmd)
             put("args", args)
@@ -55,7 +107,36 @@ class VrcxCoreClient(
         }
         return body["result"] ?: JsonNull
     }
+
+    /**
+     * True when the result is VRChat's "you sent no auth cookie" answer relayed by the core.
+     *
+     * Checked on the raw result because `app__vrchat_*` answers with VRChat's status and body inside `ok: true`;
+     * `bodyOrThrow` is where it would otherwise surface, and by then the call has already failed for the caller.
+     */
+    private fun JsonElement.isMissingCredentials(): Boolean {
+        val obj = this as? JsonObject ?: return false
+        val status = obj["status"]?.jsonPrimitive?.content?.toIntOrNull() ?: return false
+        if (status != 401) return false
+        return obj["data"]?.jsonPrimitive?.content?.contains("Missing Credentials") == true
+    }
 }
+
+/** How long a command that hit `Missing Credentials` waits for the session before giving up. */
+private const val SESSION_WAIT_MILLIS = 5_000L
+
+/** Pause before retrying a command that failed because the core's loopback socket was gone. */
+private const val RESUME_RETRY_DELAY_MILLIS = 400L
+
+/**
+ * Name of the command whose result is currently being parsed.
+ *
+ * Diagnostics only, and a plain field on purpose: threading a parameter through the ~110
+ * `invoke(...).toVrchatResult()` call sites would cost far more than it is worth. Calls on one client are
+ * awaited one at a time, so the value read right after `invoke` returns is the one that produced it.
+ */
+internal var lastInvokedCommand: String = ""
+    private set
 
 class VrcxCoreException(val code: String, override val message: String) : Exception(message)
 
@@ -328,7 +409,13 @@ data class VrchatResult(val status: Int, val data: String) {
     /** Body, or a readable failure when the backend could not reach VRChat. */
     fun bodyOrThrow(): String {
         if (status !in 200..299) {
-            throw VrcxCoreException("http$status", "backend answered $status: ${data.take(200)}")
+            // Naming the command is the difference between "someone got a 401" and a diagnosis: the status and
+            // body are VRChat's, so on their own they never say which call made it.
+            val command = lastInvokedCommand.ifEmpty { "unknown command" }
+            throw VrcxCoreException(
+                "http$status",
+                "$command answered $status: ${data.take(200)}"
+            )
         }
         return data
     }

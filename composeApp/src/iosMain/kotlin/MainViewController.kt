@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import io.github.vrcmteam.vrcm.mobilecore.startVrcxCore
+import io.github.vrcmteam.vrcm.mobilecore.vrcxCoreClient
 import io.github.vrcmteam.vrcm.presentation.screens.meetup.display.MeetupPresentationRootViewController
 import org.koin.core.context.startKoin
 import platform.UIKit.UIViewController
@@ -47,3 +48,15 @@ fun StartVrcxCore(): Boolean {
 }
 
 private val coreEventScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+/**
+ * Called by the Swift side every time the app becomes active again.
+ *
+ * iOS freezes the whole process in the background, so the core's threads stop and any loopback connection the
+ * HTTP client pooled before freezing can be dead on resume - the app then shows `-1004 cannot connect to
+ * 127.0.0.1:<port>` for every command until it is killed and reopened. Dropping the pool means the next call
+ * dials a fresh socket instead of reusing one the client still believes in.
+ */
+fun OnAppBecameActive() {
+    runCatching { vrcxCoreClient().resetConnections() }
+}
