@@ -20,17 +20,19 @@ concurrency:
 
 jobs:
   build:
-    # macos-15 is the current supported image. macos-13 was removed (support ended 2025-12-04) and every
-    # macOS 14 image was retired from GitHub Actions on 2026-11-02, so jobs sent to either of those sat in
-    # the queue forever instead of failing.
-    runs-on: macos-15
+    # Intel on purpose. The arm64 standard image is 3 vCPU / 7 GB, and `gradle.properties` asks for an 8 GB
+    # Gradle heap plus a 4 GB Kotlin daemon - more than that machine has, which is why the same link has been
+    # measured at 33 and at 348 minutes there (the long one hit GitHub's 6-hour job limit). `macos-15-intel`
+    # is a standard-tier runner with 4 vCPU / 14 GB, so those values fit and the JVM stops swapping.
+    #
+    # The host architecture does not affect the artifact: this cross-compiles *for* iOS arm64, from Rust
+    # (`--target aarch64-apple-ios`) and from Kotlin/Native alike.
+    runs-on: macos-15-intel
 
-    # No GRADLE_OPTS here on purpose. A previous attempt capped the daemons at 3 GB to stop the swapping
-    # that `gradle.properties` (`-Xmx8192M`) causes on a 7 GB runner - and it made things far worse: the
-    # Kotlin/Native link needs more than 3 GB of heap, so the JVM spent its time in GC and the archive step
-    # ran 348 minutes until GitHub's 6-hour job limit killed it. The values in `gradle.properties` are
-    # over-committed but they do complete: 33-57 minutes per link. Do not "fix" the heap here again without
-    # measuring the archive step's duration end to end.
+    # No GRADLE_OPTS here on purpose. Capping the daemons at 3 GB to "fix" the swapping made it far worse:
+    # the Kotlin/Native link needs more than that, so the JVM spent its time in GC instead of failing, and the
+    # archive step ran 348 minutes until the job timed out. Let `gradle.properties` decide, and if the heap is
+    # ever tuned again, measure the archive step's duration end to end.
 
     steps:
       - name: Checkout app
