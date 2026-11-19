@@ -4,6 +4,11 @@ package io.github.vrcmteam.vrcm
 import androidx.compose.ui.window.ComposeUIViewController
 import io.github.vrcmteam.vrcm.di.commonModules
 import io.github.vrcmteam.vrcm.di.modules.platformModule
+import io.github.vrcmteam.vrcm.mobilecore.CoreEventBridge
+import io.github.vrcmteam.vrcm.mobilecore.CoreEvents
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import io.github.vrcmteam.vrcm.mobilecore.startVrcxCore
 import io.github.vrcmteam.vrcm.presentation.screens.meetup.display.MeetupPresentationRootViewController
 import org.koin.core.context.startKoin
@@ -33,4 +38,12 @@ fun StartKoin() = startKoin {
  * start from a successful one - the first symptom of a missing call here was a login that fell back to the
  * plain Ktor path and failed with "the backend did not return a user".
  */
-fun StartVrcxCore(): Boolean = startVrcxCore() != null
+fun StartVrcxCore(): Boolean {
+    val core = startVrcxCore() ?: return false
+    // Same wiring as Android's MainActivity: without it the core's push half is connected but nothing in
+    // the UI subscribes, so friend/instance/notification changes never reach a screen.
+    CoreEventBridge({ CoreEvents(core.baseUrl) }, coreEventScope).start()
+    return true
+}
+
+private val coreEventScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)

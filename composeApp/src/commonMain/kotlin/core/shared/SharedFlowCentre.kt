@@ -91,6 +91,23 @@ object SharedFlowCentre {
      */
     val refreshRequest = MutableSharedFlow<Unit>(extraBufferCapacity = 1, onBufferOverflow = BufferOverflow.DROP_OLDEST)
 
+    /**
+     * 核心实时推送（`GET /api/events`）。
+     *
+     * 只把它当作「有变化」的信号，不尝试把核心的 projection 反解成 VRChat 的原始 pipeline 事件：
+     * 核心推的是已经算好的 projection（好友/房间/用户），形状与 [webSocket] 里那些事件不同，
+     * 硬套会得到语义不对的事件。订阅者收到后自己去拉当前状态。
+     *
+     * 名字来自核心：`realtimeProjectionSync`、`realtimeFriendProjection`、`realtimeUserProjection`、
+     * `realtimeWsStatus`、`notification`、`notification-v2` 等。
+     * 留一格缓冲并丢最旧：订阅者只关心「又有变化了」，不关心错过几次。
+     */
+    val coreEvents = MutableSharedFlow<String>(
+        replay = 0,
+        extraBufferCapacity = 8,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
     suspend fun emitAuthenticated(account: AccountDto) {
         sessionRegistry.authenticate(account).also {
             _groupRepresentationState.value = null

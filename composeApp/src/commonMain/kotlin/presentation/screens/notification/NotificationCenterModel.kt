@@ -112,6 +112,26 @@ class NotificationCenterModel(
                     ?.let(::queueNotificationRefresh)
             }
         }
+        // Core push: the notification family arrives here too, because this app no longer runs a VRChat
+        // pipeline socket of its own. Keying off the event name keeps the badge honest even when the
+        // notification was created by the core itself (an invite sent from this device writes a row locally).
+        modelScope.launch {
+            SharedFlowCentre.coreEvents.collect { name ->
+                if (name.isNotificationEvent()) refreshAllNotification()
+            }
+        }
+    }
+
+    /**
+     * 核心通知类事件名。
+     *
+     * 桌面端从 Tauri 的 `listen` 收同名事件；手机端没有自己的 pipeline socket，所以这些名字是通知唯一的推送来源。
+     */
+    private fun String.isNotificationEvent(): Boolean = when (this) {
+        "notification", "notification-v2", "notification-v2-update",
+        "response-notification", "see-notification", "hide-notification",
+        "clear-notification", "notificationV2" -> true
+        else -> false
     }
 
     fun refreshAllNotification() {

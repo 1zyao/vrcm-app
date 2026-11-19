@@ -9,6 +9,7 @@ import io.github.vrcmteam.vrcm.service.FriendActivityEventType
 import io.github.vrcmteam.vrcm.service.FriendActivityService
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -17,6 +18,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 enum class FriendActivityTimelineFilter(internal val eventTypes: Set<FriendActivityEventType>) {
@@ -156,6 +158,29 @@ class FriendActivityTimelineModel internal constructor(
 
     init {
         require(pageSize > 0) { "pageSize must be positive" }
+        // Push: the core announces every change to the projections this timeline is built from. Before
+        // this, the only triggers were a session change, a filter change and the manual reload, so the
+        // page showed whatever it had loaded when it was opened and never moved again.
+        viewModelScope.launch {
+            SharedFlowCentre.coreEvents.collect { name ->
+                if (name.isActivityProjection()) {
+                    println("[Feed] reload by core event: $name")
+                    reloadRequest.value++
+                }
+            }
+        }
+        // Floor under the push: a dropped event, a reconnect, or a projection that changed while the app
+        // was backgrounded would otherwise leave the page stale until the user pulled it. The cost is one
+        // paged query per minute against the core's local database, not a network request.
+        viewModelScope.launch {
+            while (isActive) {
+                delay(REFRESH_INTERVAL_MS)
+                if (activeToken != null) {
+                    println("[Feed] periodic reload")
+                    reloadRequest.value++
+                }
+            }
+        }
         viewModelScope.launch {
             combine(source.sessionTokens, selectedFilter, reloadRequest) { token, filter, _ ->
                 token to filter
@@ -368,3 +393,21 @@ internal fun Iterable<FriendActivityEvent>.normalizeActivityEvents(): List<Frien
 
 internal fun List<FriendActivityEvent>.deduplicateActivityEvents(): List<FriendActivityEvent> =
     normalizeActivityEvents()
+
+/** 保底轮询间隔：核心推送之外的「有没有变化」兜底，一分钟一次本地库查询。 */
+private const val REFRESH_INTERVAL_MS = 60_000L
+
+/**
+ * 这些核心事件意味着动态时间线可能变了。
+ *
+ * 只匹配 projection / 好友 / 收藏相关的推送，不匹配 `syncStatusChanged`、`vrcStatus` 这类事件 -
+ * 同步状态几秒一次的变化会把页面刷成一直在转圈。
+ */
+private fun String.isActivityProjection(): Boolean = when (this) {
+    "realtimeProjectionSync",
+    "realtimeFriendProjection",
+    "realtimeUserProjection",
+    "realtimeCurrentUserProjection",
+    "favoritesChanged" -> true
+    else -> false
+}

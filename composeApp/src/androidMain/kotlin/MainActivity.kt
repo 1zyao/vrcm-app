@@ -11,6 +11,7 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.lifecycle.lifecycleScope
+import io.github.vrcmteam.vrcm.mobilecore.CoreEventBridge
 import io.github.vrcmteam.vrcm.mobilecore.CoreEvents
 import io.github.vrcmteam.vrcm.mobilecore.debugEmitEvent
 import io.github.vrcmteam.vrcm.mobilecore.startVrcxCore
@@ -66,22 +67,20 @@ class MainActivity : ComponentActivity() {
                     }
                     .onFailure { Log.e("VrcxCore", "feedRows failed", it) }
 
-                // Event channel: proves the WS half of the contract is reachable and
-                // keeps logging whatever the core pushes.
-                launch {
-                    runCatching {
-                        Log.i("VrcxCore", "event stream connecting to ${core.baseUrl}")
-                        var emitted = false
-                        CoreEvents(core.baseUrl).stream().collect { event ->
-                            Log.i("VrcxCore", "event ${event.name}: ${event.payload.toString().take(160)}")
-                            if (event.name == "connected" && !emitted) {
-                                emitted = true
-                                runCatching {
-                                    core.debugEmitEvent("probeEvent", Json.parseToJsonElement("""{"ok":true}"""))
-                                }.onFailure { Log.e("VrcxCore", "debug emit failed", it) }
-                            }
+                // Event channel: the core's push half (`GET /api/events`). It is not just for logging any
+                // more - `CoreEventBridge` puts every event name on `SharedFlowCentre.coreEvents`, which is
+                // what the feed timeline and the notification centre now refresh from. Without that wiring
+                // the core kept computing friend/instance changes that no screen ever saw.
+                CoreEventBridge({ CoreEvents(core.baseUrl) }, lifecycleScope).start { event ->
+                    Log.i("VrcxCore", "event ${event.name}: ${event.payload.toString().take(160)}")
+                    if (event.name == "connected") {
+                        // `debugEmitEvent` is a suspend command and this callback is a plain lambda.
+                        lifecycleScope.launch {
+                            runCatching {
+                                core.debugEmitEvent("probeEvent", Json.parseToJsonElement("""{"ok":true}"""))
+                            }.onFailure { Log.e("VrcxCore", "debug emit failed", it) }
                         }
-                    }.onFailure { Log.e("VrcxCore", "event stream failed", it) }
+                    }
                 }
 
                 // Transport probe: `config` is a public VRChat endpoint, so a 200

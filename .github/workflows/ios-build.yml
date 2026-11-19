@@ -25,15 +25,12 @@ jobs:
     # the queue forever instead of failing.
     runs-on: macos-15
 
-    # `gradle.properties` asks for `-Xmx8192M` - more heap than this runner has (3 vCPU / 7 GB). The Gradle
-    # daemon then thrashes instead of failing, which is why the same link took 33 minutes once and 57 the
-    # next time. These caps travel through the environment because the Kotlin framework is now built by
-    # Xcode's run-script phase, which invokes `./gradlew` with no arguments of its own.
-    env:
-      GRADLE_OPTS: >-
-        -Dorg.gradle.jvmargs=-Xmx3g -Dfile.encoding=UTF-8
-        -Dorg.gradle.workers.max=1 -Dkotlin.daemon.jvmargs=-Xmx3g
-      JAVA_TOOL_OPTIONS: -Dfile.encoding=UTF-8
+    # No GRADLE_OPTS here on purpose. A previous attempt capped the daemons at 3 GB to stop the swapping
+    # that `gradle.properties` (`-Xmx8192M`) causes on a 7 GB runner - and it made things far worse: the
+    # Kotlin/Native link needs more than 3 GB of heap, so the JVM spent its time in GC and the archive step
+    # ran 348 minutes until GitHub's 6-hour job limit killed it. The values in `gradle.properties` are
+    # over-committed but they do complete: 33-57 minutes per link. Do not "fix" the heap here again without
+    # measuring the archive step's duration end to end.
 
     steps:
       - name: Checkout app
